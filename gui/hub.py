@@ -78,7 +78,6 @@ class Hub:
         self.general_config.setdefault("mastery_madness", "0")
         self.general_config.setdefault("long_press_star_drop", "no")
         self.general_config.setdefault("trophies_multiplier", 1.0)
-        self.general_config.setdefault("run_for_minutes", 0)
 
         # -----------------------------------------------------------------------------------------
         # Appearance
@@ -602,14 +601,6 @@ class Hub:
             convert_func=int,
             use_general_config=True,
             tooltip_text="Enter the multiplier for trophies gained per match (for example : 2 for brawl arena)."
-        )
-
-        create_labeled_entry(
-            label_text="Run for (in minutes):",
-            config_key="run_for_minutes",
-            convert_func=int,
-            use_general_config=True,
-            tooltip_text="Set how many minutes the bot should run before stopping automatically. (0 means infinite)"
         )
 
         lbl_monitor = ctk.CTkLabel(container, text="Monitor (0=primary)", font=("Arial", S(18)))

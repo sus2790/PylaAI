@@ -6,7 +6,7 @@ import customtkinter as ctk
 import pyautogui
 from PIL import Image
 from customtkinter import CTkImage
-from utils import load_toml_as_dict
+from utils import load_toml_as_dict, update_toml_file
 from tkinter import filedialog
 
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
@@ -84,6 +84,20 @@ class SelectBrawler:
                       font=("Comic sans MS", int(25 * scale_factor)), border_color=self.colors['cherry red'],
                       border_width=int(2 * scale_factor)).place(x=int(10 * scale_factor),
                                                                 y=int((necessary_height-60) * scale_factor))
+
+        self.timer_var = tk.StringVar()
+        self.timer_entry = ctk.CTkEntry(
+            self.app, textvariable=self.timer_var,
+            placeholder_text="Enter an amount of minutes", font=("", int(20 * scale_factor)), width=int(80 * scale_factor),
+            fg_color=self.colors['ui box gray'], border_color=self.colors['cherry red'], text_color="white"
+        )
+        ctk.CTkLabel(self.app, text="Run for :", font=("Comic sans MS", int(22 * scale_factor)),
+                     text_color="white").place(x=int(scale_factor * 580), y=int((necessary_height-55) * scale_factor))
+        self.timer_entry.place(x=int(scale_factor * 675), y=int((necessary_height-55) * scale_factor))
+        self.timer_var.trace_add("write", lambda *args: self.update_timer(self.timer_var.get()))
+        ctk.CTkLabel(self.app, text="minutes", font=("Comic sans MS", int(22 * scale_factor)),
+                     text_color="white").place(x=int(scale_factor * 760), y=int((necessary_height-55) * scale_factor))
+
         self.app.mainloop()
 
     def set_farm_type(self, value):
@@ -263,6 +277,14 @@ class SelectBrawler:
                     col_num = 0
                     row_num += 1
 
+    def update_timer(self, value):
+        try:
+            minutes = int(value)
+            config = load_toml_as_dict("cfg/general_config.toml")
+            config['run_for_minutes'] = minutes
+            update_toml_file("cfg/general_config.toml", config)
+        except ValueError:
+            pass  # Ignore invalid input
 
 def dummy_data_setter(data):
     print("Data set:", data)

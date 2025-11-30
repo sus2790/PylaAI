@@ -128,14 +128,8 @@ def update_toml_file(path, new_data):
 
 def get_brawler_list():
     if api_base_url == "localhost":
-        return ['8bit', 'amber', 'angelo', 'ash', 'barley', 'bea', 'belle', 'berry', 'bibi', 'bo', 'bonnie',
-                'brock', 'bull', 'buster', 'buzz', 'byron', 'carl', 'charlie', 'chester', 'chuck', 'clancy',
-                'colette', 'colt', 'cordelius', 'crow', 'darryl', 'doug', 'draco', 'dynamike', 'edgar',
-                'elprimo', 'emz', 'eve', 'fang', 'frank', 'gale', 'gene', 'gray', 'griff', 'grom', 'gus',
-                'hank', 'jacky', 'janet', 'jessie', 'kit', 'larrylawrie', 'leon', 'lily', 'lola', 'lou',
-                'maisie', 'mandy', 'max', 'meg', 'melodie', 'mico', 'mortis', 'mrp', 'nani', 'nita', 'otis',
-                'pam', 'pearl', 'penny', 'piper', 'poco', 'rt', 'rico', 'rosa', 'ruffs', 'sam', 'sandy',
-                'shelly', 'spike', 'sprout', 'squeak', 'stu', 'surge', 'tara', 'tick', 'willow', 'moe', 'kenji', "juju", "shade", "ollie", "meeple", "finx", "lumi", "kaze", "jaeyong", "alli"]
+        brawler_list =  list(load_toml_as_dict("cfg/ranges.toml").keys())[1:]
+        return brawler_list
     url = f'https://{api_base_url}/get_brawler_list'
     response = requests.post(url)
     if response.status_code == 201:
