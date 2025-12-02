@@ -2,10 +2,9 @@ import os
 import random
 import sys
 import time
-
+from utils import reader
 import bettercam as dxcam
 import cv2
-from easyocr import easyocr
 import numpy as np
 from difflib import SequenceMatcher
 
@@ -46,7 +45,6 @@ def load_template(image_path, width, height):
     return resized_image
 
 crop_region = load_toml_as_dict("./cfg/lobby_config.toml")['lobby']['trophy_observer']
-reader = easyocr.Reader(['en'])
 
 
 def rework_game_result(res_string):

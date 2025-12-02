@@ -53,6 +53,8 @@ class LobbyAutomation:
                     key = key.replace(symbol, "")
                 if key == "shey":
                     key = "shelly"
+                if key == "larryslawrie":
+                    key = "larrylawrie"
                 reworked_results[key] = results[orig_key]
             if debug:
                 print("All detected text while looking for brawler name:", reworked_results.keys())

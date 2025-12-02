@@ -3,9 +3,7 @@ import os
 import requests
 from difflib import SequenceMatcher
 import numpy as np
-from easyocr import easyocr
-from utils import update_toml_file, load_toml_as_dict, save_dict_as_toml, api_base_url
-
+from utils import update_toml_file, load_toml_as_dict, save_dict_as_toml, api_base_url, reader
 
 class TrophyObserver:
 
@@ -25,7 +23,6 @@ class TrophyObserver:
                                    (1099, 8), (1199, 11), (1299, 13), (1399, 16), (1499, 19), (1599, 22), (1699, 25), (1799, 28), (1899, 31), (1999, 34), (float("inf"), 50)]
         self.trophy_win_ranges = [(1099, 8), (1199, 7), (1299, 6), (1399, 5), (1499, 4), (1599, 3), (1699, 2), (float("inf"), 1)]
         self.crop_region = load_toml_as_dict("./cfg/lobby_config.toml")['lobby']['trophy_observer']
-        self.reader = easyocr.Reader(['en'])
         self.trophies_multiplier = int(load_toml_as_dict("./cfg/general_config.toml")["trophies_multiplier"])
 
     @staticmethod
@@ -116,7 +113,7 @@ class TrophyObserver:
         if not game_result:
             screenshot = screenshot.crop(self.crop_region)
             array_screenshot = np.array(screenshot)
-            result = self.reader.readtext(array_screenshot)
+            result = reader.readtext(array_screenshot)
 
             if len(result) == 0:
                 return False

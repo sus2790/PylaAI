@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from PIL import Image
 import onnxruntime as ort
-from ultralytics.utils import ops
+from ultralytics.utils.nms import non_max_suppression
 from utils import load_toml_as_dict
 
 class Detect:
@@ -74,7 +74,8 @@ class Detect:
 
     def postprocess(self, preds, img, orig_img_shape, resized_shape, conf_tresh=0.6):
         # Apply Non-Maximum Suppression (NMS)
-        preds = ops.non_max_suppression(
+
+        preds = non_max_suppression(
             preds,
             conf_thres=conf_tresh,
             iou_thres=0.6,

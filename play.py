@@ -12,12 +12,13 @@ from utils import load_toml_as_dict, count_hsv_pixels
 
 pyautogui.PAUSE = 0
 
-TILE_SIZE = 70
+
 orig_screen_width, orig_screen_height = 1920, 1080
 width, height = pyautogui.size()
 width_ratio = width / orig_screen_width
 height_ratio = height / orig_screen_height
 scale_factor = min(width_ratio, height_ratio)
+TILE_SIZE = 65 * scale_factor
 
 class Movement:
 

@@ -11,7 +11,7 @@ toml
 torch
 pillow
 discord.py
-easyocr
+onnxtr
 shapely
 ultralytics
 bettercam
