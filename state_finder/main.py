@@ -7,7 +7,7 @@ import bettercam as dxcam
 import cv2
 import numpy as np
 from difflib import SequenceMatcher
-
+import pyautogui
 sys.path.append(os.path.abspath('../'))
 from utils import count_hsv_pixels, load_toml_as_dict
 
@@ -149,7 +149,9 @@ def get_state(screenshot):
     screenshot_bgr = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
     start_time = time.time()
     state = get_in_game_state(screenshot_bgr)
-    print(state)
+    if state != "match":
+        for key in ['w', 'a', 'd', 's']:
+            pyautogui.keyUp(key)
     return state
 
 

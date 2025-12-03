@@ -78,6 +78,6 @@ class LobbyAutomation:
                 continue  # Some weird bug causing the first frame to not get any results so this redoes it
             pyautogui.moveTo(1700, 900)
             pyautogui.mouseDown()
-            pyautogui.moveTo(1700, 700, duration=1)
+            pyautogui.moveTo(1700, 650, duration=0.8)
             pyautogui.mouseUp()
             time.sleep(1)

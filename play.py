@@ -141,7 +141,7 @@ class Play(Movement):
         super().__init__()
 
         self.specific_game_data = {}
-        self.Detect_main_info = Detect(main_info_model, classes=['enemy', 'player', 'teammate'])
+        self.Detect_main_info = Detect(main_info_model, classes=['enemy', 'teammate', 'player'])
         self.Detect_specific_info = Detect(specific_info_model,
                                            classes=['ammo', 'ball', 'damage_taken', 'defeat', 'draw',
                                                     'enemy_health_bar', 'enemy_position', 'gadget', 'gem',
@@ -418,14 +418,13 @@ class Play(Movement):
             move_vertical = self.get_vertical_move_key(direction_y, opposite=True)
             state = "escape"
 
+        movement_options = [move_horizontal + move_vertical]
         if self.game_mode == 3:
-            opposite_move = 'D' if move_horizontal == 'A' else 'A'
-            movement_options = [move_horizontal + move_vertical, move_horizontal, opposite_move]
+            movement_options += [move_vertical, move_horizontal]
         elif self.game_mode == 5:
-            opposite_move = 'W' if move_vertical == 'S' else 'S'
-            movement_options = [move_horizontal + move_vertical, move_vertical, opposite_move]
+            movement_options += [move_horizontal, move_vertical]
         else:
-            movement_options = [move_horizontal + move_vertical, move_horizontal, move_vertical]
+            raise ValueError("Gamemode type is invalid")
 
         # Check for walls and adjust movement
         for move in movement_options:
@@ -433,8 +432,8 @@ class Play(Movement):
                 movement = move
                 break
         else:
-            print("all paths blocked")
-            # If all preferred directions are blocked, try alternative directions
+            print("default paths are blocked")
+            # If all preferred directions are blocked, try other directions
             alternative_moves = ['W', 'A', 'D', 'S']
             random.shuffle(alternative_moves)
             for move in alternative_moves:
@@ -442,7 +441,9 @@ class Play(Movement):
                     movement = move
                     break
             else:
-                movement = ''  # No movement possible
+                # if no movement is available, we still try to go in the best direction
+                # because it's better than doing nothing
+                movement = move_horizontal + move_vertical
 
         current_time = time.time()
         if movement != self.last_movement:
@@ -491,9 +492,7 @@ class Play(Movement):
         self.track_no_detections(data)
         if not data:
             self.time_since_movement_change = time.time()
-            for key in ['w', 'a', 'd', 's']:
-                pyautogui.keyUp(key)
-            self.keys_hold = []
+
             if current_time - self.time_since_last_proceeding > self.no_detection_proceed_delay:
                 current_state = get_state(frame)
                 if current_state != "match":
