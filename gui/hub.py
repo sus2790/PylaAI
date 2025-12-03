@@ -9,6 +9,7 @@ from PIL import Image
 import tkinter as tk
 import bettercam
 from utils import load_toml_as_dict, save_dict_as_toml, get_discord_link
+from packaging import version
 
 orig_screen_width, orig_screen_height = 1920, 1080
 width, height = pyautogui.size()
@@ -198,7 +199,7 @@ class Hub:
         w_list = []
         if not self.correct_zoom:
             w_list.append("Warning: Your Windows zoom isn't 100% (DPI != 96).")
-        if self.latest_version_str and self.version_str != self.latest_version_str:
+        if self.latest_version_str and version.parse(self.version_str) < version.parse(self.latest_version_str):
             w_list.append(f"Warning: You are not on the latest version ({self.latest_version_str}).")
 
         if w_list:

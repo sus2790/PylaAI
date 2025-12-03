@@ -122,7 +122,6 @@ class SelectBrawler:
                 with open(file_path, 'r') as file:
                     brawlers_data = json.load(file)
                     try:
-                        brawlers_data[0]['push_until']
                         for brawler_data in brawlers_data:
                             # if we find a brawler that has already reached it's goal, we remove it from the list
                             push_type = brawler_data["type"]
