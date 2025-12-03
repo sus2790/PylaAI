@@ -98,6 +98,7 @@ class SelectBrawler:
         ctk.CTkLabel(self.app, text="Run for :", font=("Comic sans MS", int(22 * scale_factor)),
                      text_color="white").place(x=int(scale_factor * 580), y=int((necessary_height-55) * scale_factor))
         self.timer_entry.place(x=int(scale_factor * 675), y=int((necessary_height-55) * scale_factor))
+        self.timer_var.set(load_toml_as_dict("cfg/general_config.toml")["run_for_minutes"])
         self.timer_var.trace_add("write", lambda *args: self.update_timer(self.timer_var.get()))
         ctk.CTkLabel(self.app, text="minutes", font=("Comic sans MS", int(22 * scale_factor)),
                      text_color="white").place(x=int(scale_factor * 760), y=int((necessary_height-55) * scale_factor))
