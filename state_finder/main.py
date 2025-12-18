@@ -148,6 +148,7 @@ def get_state(screenshot):
     screenshot = np.array(screenshot)
     screenshot_bgr = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
     state = get_in_game_state(screenshot_bgr)
+    print(f"State: {state}")
     if state != "match":
         for key in ['w', 'a', 'd', 's']:
             pyautogui.keyUp(key)

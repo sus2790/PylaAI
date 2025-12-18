@@ -223,13 +223,12 @@ def update_missing_brawlers_info(brawlers):
             brawler_info = get_brawler_info(brawler)
             if brawler_info:
                 brawlers_info[brawler] = brawler_info
-                # Save the updated ranges to the TOML file
                 update_brawlers_info(brawlers_info)
                 print(f"Added info for brawler '{brawler}': {brawler_info}")
                 # Download the brawler icon
                 save_brawler_icon(brawler)
             else:
-                print(f"Could not find range for brawler '{brawler}'")
+                print(f"Could not find info for brawler '{brawler}'")
         if not os.path.exists(f"./api/assets/brawler_icons/{brawler}.png"):
             save_brawler_icon(brawler)
 

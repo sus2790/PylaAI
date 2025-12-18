@@ -105,7 +105,6 @@ def pyla_main(data):
         def manage_time_tasks(self, frame):
             if self.Time_management.state_check():
                 state = get_state(frame)
-                print("state:", state)
                 self.state = state
                 frame_data = frame if state in self.states_requiring_data else None
                 self.Stage_manager.do_state(state, frame_data)
