@@ -7,7 +7,6 @@ from shapely import LineString
 from shapely.geometry import Polygon
 from state_finder.main import get_state
 from detect import Detect
-from state_finder.main import get_in_game_state
 from utils import load_toml_as_dict, count_hsv_pixels, load_brawlers_info
 
 pyautogui.PAUSE = 0
@@ -225,9 +224,9 @@ class Play(Movement):
     def can_attack_through_walls(brawler, skill_type, brawlers_info=None):
         if not brawlers_info: brawlers_info = load_brawlers_info()
         if skill_type == "attack":
-            return brawlers_info[brawler]['can_attack_through_walls']
+            return brawlers_info[brawler]['ignore_walls_for_attacks']
         elif skill_type == "super":
-            return brawlers_info[brawler]['super_can_attack_through_walls']
+            return brawlers_info[brawler]['ignore_walls_for_supers']
         raise ValueError("skill_type must be either 'attack' or 'super'")
 
 

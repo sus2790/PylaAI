@@ -129,7 +129,7 @@ class SelectBrawler:
                             if brawler_data["push_until"] <= brawler_data[push_type]:
                                 brawlers_data.remove(brawler_data)
                         self.brawlers_data = brawlers_data
-                        print("Brawler data loaded successfully.")
+                        print("Brawler data loaded successfully :", brawlers_data)
                     except Exception as e:
                         print("Invalid data format. Expected a list of brawler data.", e)
             except Exception as e:

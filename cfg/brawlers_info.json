@@ -774,5 +774,21 @@
         "safe_range": 0,
         "super_range": 469,
         "super_type": "charge"
-    }
+    },
+    "pierce": {
+      "safe_range": 305,
+      "attack_range": 614,
+      "super_type": "damage",
+      "super_range": 315,
+      "ignore_walls_for_attacks": false,
+      "ignore_walls_for_supers": true
+    },
+    "glowbert": {
+    "safe_range": 315,
+    "attack_range": 512,
+    "super_type": "damage",
+    "super_range": 362,
+    "ignore_walls_for_attacks": false,
+    "ignore_walls_for_supers": false
+  }
 }

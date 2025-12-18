@@ -130,8 +130,8 @@ class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
                 image = None
         return image
 
-reader = OCR_Wrapper()
-api_base_url = ""
+reader = DefaultEasyOCR()
+api_base_url = "localhost"
 brawlers_info_file_path = "cfg/brawlers_info.json"
 
 def count_hsv_pixels(pil_image, low_hsv, high_hsv):

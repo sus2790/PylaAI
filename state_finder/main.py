@@ -147,7 +147,6 @@ def is_in_star_drop(image):
 def get_state(screenshot):
     screenshot = np.array(screenshot)
     screenshot_bgr = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
-    start_time = time.time()
     state = get_in_game_state(screenshot_bgr)
     if state != "match":
         for key in ['w', 'a', 'd', 's']:
