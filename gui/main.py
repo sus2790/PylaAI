@@ -24,7 +24,7 @@ class App:
     def set_data(self, value):
         self.brawler_data = value
 
-    def start(self, capture_thread, pyla_version, get_latest_version):
+    def start(self, pyla_version, get_latest_version):
         self.login(self.set_is_logged)
         if self.logged_in:
             if api_base_url == "localhost":
@@ -33,7 +33,6 @@ class App:
                 self.hub_menu(pyla_version, get_latest_version())
             self.select_brawler(self.set_data, self.brawlers)
             if self.brawler_data:
-                capture_thread.start()
                 utils.save_brawler_data(self.brawler_data)
                 self.pyla_main(self.brawler_data)
 

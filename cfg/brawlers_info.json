@@ -13,7 +13,7 @@
         "super_type": "damage",
         "super_range": 704,
         "ignore_walls_for_attacks": false,
-        "ignore_walls_for_supers": true
+        "ignore_walls_for_supers": false
     },
     "bull": {
         "safe_range": 210.0,

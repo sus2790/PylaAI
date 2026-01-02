@@ -4,7 +4,7 @@ from queue import Empty
 import numpy as np
 import pyautogui
 from utils import click
-from utils import extract_text_and_positions, ScreenshotTaker, count_hsv_pixels, load_toml_as_dict
+from utils import extract_text_and_positions, count_hsv_pixels, load_toml_as_dict
 
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 
@@ -16,8 +16,7 @@ scale_factor = min(width_ratio, height_ratio)
 
 class LobbyAutomation:
 
-    def __init__(self, camera, frame_queue):
-        self.Screenshot = ScreenshotTaker(camera)
+    def __init__(self, frame_queue):
         self.coords_cfg = load_toml_as_dict("./cfg/lobby_config.toml")
         self.frame_queue = frame_queue
 
@@ -29,7 +28,7 @@ class LobbyAutomation:
         gray_pixels = count_hsv_pixels(screenshot, (0, 0, 66), (0, 0, 66))
         if debug: print("gray pixels (if > 1000 then bot will try to unidle) :", gray_pixels)
         if gray_pixels > 1000:
-            click(535, 615)
+            click(int(535 * width_ratio), int(615 * height_ratio))
 
     def select_brawler(self, brawler):
         x, y = self.coords_cfg['lobby']['brawlers_btn'][0] * width_ratio, self.coords_cfg['lobby']['brawlers_btn'][
@@ -70,14 +69,14 @@ class LobbyAutomation:
                 if debug: print("Selected brawler ", brawler)
                 break
             if c == 0:
-                pyautogui.moveTo(1700, 900)
+                pyautogui.moveTo(int(1700 * width_ratio), int(900 * height_ratio))
                 pyautogui.mouseDown()
-                pyautogui.moveTo(1700, 850, duration=1)
+                pyautogui.moveTo(int(1700 * width_ratio), int(850 * height_ratio), duration=1)
                 pyautogui.mouseUp()
                 c += 1
                 continue  # Some weird bug causing the first frame to not get any results so this redoes it
-            pyautogui.moveTo(1700, 900)
+            pyautogui.moveTo(int(1700 * width_ratio), int(900 * height_ratio))
             pyautogui.mouseDown()
-            pyautogui.moveTo(1700, 650, duration=0.8)
+            pyautogui.moveTo(int(1700 * width_ratio), int(650 * height_ratio), duration=0.8)
             pyautogui.mouseUp()
             time.sleep(1)

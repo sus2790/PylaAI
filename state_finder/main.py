@@ -21,24 +21,35 @@ for file in os.listdir("./state_finder/images_to_detect"):
         images_with_star_drop.append(file)
 # path = r"./images_to_detect/"
 region_data = load_toml_as_dict("./cfg/lobby_config.toml")['template_matching']
-check_brawl_stars_crashed = str(load_toml_as_dict("./cfg/general_config.toml")['check_if_brawl_stars_crashed']).lower()
-
+check_brawl_stars_crashed = load_toml_as_dict("./cfg/general_config.toml")['check_if_brawl_stars_crashed'] == "yes"
+bot_plays_in_background = load_toml_as_dict("./cfg/general_config.toml")['bot_plays_in_background'] == "yes"
 def is_template_in_region(image, template_path, region):
     current_height, current_width = image.shape[:2]
-    orig_x, orig_y, orig_width, orig_height = region
-    width_ratio, height_ratio = current_width / orig_screen_width, current_height / orig_screen_height
+    if not bot_plays_in_background:
+        orig_x, orig_y, orig_width, orig_height = region
+        width_ratio, height_ratio = current_width / orig_screen_width, current_height / orig_screen_height
+
+    else:
+        orig_x, orig_y, orig_width, orig_height = 0, 0, current_width, current_height
+        width_ratio, height_ratio = current_width / 1774, current_height / 998
+
     new_x, new_y = int(orig_x * width_ratio), int(orig_y * height_ratio)
     new_width, new_height = int(orig_width * width_ratio), int(orig_height * height_ratio)
     cropped_image = image[new_y:new_y + new_height, new_x:new_x + new_width]
     current_height, current_width = image.shape[:2]
-    result = cv2.matchTemplate(cropped_image, load_template(template_path, current_width, current_height),
+    loaded_template = load_template(template_path, current_width, current_height)
+    # save to debug frames both template and image
+    result = cv2.matchTemplate(cropped_image, loaded_template,
                                cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    return max_val > 0.8
+    return max_val > 0.7
 
 
 def load_template(image_path, width, height):
-    width_ratio, height_ratio = width / orig_screen_width, height / orig_screen_height
+    if not bot_plays_in_background:
+        width_ratio, height_ratio = width / orig_screen_width, height / orig_screen_height
+    else:
+        width_ratio, height_ratio = width / 1774, height / 998
     image = cv2.imread(image_path)
     orig_height, orig_width = image.shape[:2]
     resized_image = cv2.resize(image, (int(orig_width * width_ratio), int(orig_height * height_ratio)))
@@ -74,14 +85,14 @@ def find_game_result(screenshot):
 
     # Appliquez l'OCR
     result = reader.readtext(screenshot)
-
+    # save screenshot to debug_frames folder and the current datetime as filename
     if len(result) == 0:
         return False
 
     _, text, conf = result[0]
     game_result, ratio = rework_game_result(text)
     if ratio < 0.5:
-        print("Couldn't find game result")
+        print("Couldn't find game result", game_result, ratio)
         return False
     return True
 
@@ -97,7 +108,7 @@ def get_in_game_state(image):
     if count_hsv_pixels(image, (0, 0, 255), (0, 0, 255)) > 200000:
         return "play_store"
 
-    if not is_template_in_region(image, path + "brawl_stars_icon.PNG", region_data['brawl_stars_icon']) and (check_brawl_stars_crashed == "yes" or check_brawl_stars_crashed == "true"):
+    if not is_template_in_region(image, path + "brawl_stars_icon.PNG", region_data['brawl_stars_icon']) and check_brawl_stars_crashed:
         return "brawl_stars_crashed"
 
     if is_in_brawl_pass(image) or is_in_star_road(image):

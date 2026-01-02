@@ -16,27 +16,31 @@ from gui.main import App
 from gui.select_brawler import SelectBrawler
 from lobby_automation import LobbyAutomation
 from play import Play
-from stage_manager import StageManager
+from stage_manager import StageManager, load_image
 from state_finder.main import get_state
+import state_finder.main as state_finder_main
 from time_management import TimeManagement
-from utils import ScreenshotTaker, load_toml_as_dict, current_wall_model_is_latest, api_base_url
+from utils import ScreenshotTaker, load_toml_as_dict, current_wall_model_is_latest, api_base_url, find_template_center
 from utils import get_brawler_list, update_missing_brawlers_info, update_icons, check_version, async_notify_user, \
     update_wall_model_classes, get_latest_wall_model_file, get_latest_version, cprint
+from window_controller import WindowController
 
 pyla_version = load_toml_as_dict("./cfg/general_config.toml")['pyla_version']
-chosen_monitor = int(load_toml_as_dict("./cfg/general_config.toml")['monitor'])
-camera = bettercam.create(device_idx=chosen_monitor)
+
 frame_lock = threading.Lock()
 frame_available = threading.Event()
-Screenshot = ScreenshotTaker(camera)
+
 frame_queue = Queue(maxsize=1)
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 
 
-def capture_loop():
+def capture_loop(window_controller, Screenshot, does_bot_player_in_background):
     while True:
-        image = Screenshot.take()
         try:
+            if not does_bot_player_in_background:
+                image = Screenshot.take()
+            else:
+                image = window_controller.screenshot()
             frame_queue.put(image, block=False)
         except Full:
             try:
@@ -44,24 +48,41 @@ def capture_loop():
             except Empty:
                 pass
             frame_queue.put(image, block=False)
+        except Exception as e:
+            print("Error in capture loop:", e)
 
 
-capture_thread = threading.Thread(target=capture_loop, daemon=True)
 
 
 def pyla_main(data):
     class Main:
 
         def __init__(self, lobby_automator):
+            self.does_bot_player_in_background = load_toml_as_dict("cfg/general_config.toml")["bot_plays_in_background"] == "yes"
+            chosen_monitor = int(load_toml_as_dict("./cfg/general_config.toml")['monitor'])
+            camera = bettercam.create(device_idx=chosen_monitor)
+            current_emulator = load_toml_as_dict("cfg/general_config.toml")["current_emulator"]
+            window_controller = WindowController(current_emulator)
+            if not window_controller.setup:
+                self.does_bot_player_in_background = False
+            Screenshot = ScreenshotTaker(camera, window_controller)
+            capture_thread = threading.Thread(target=capture_loop, args=(window_controller, Screenshot, self.does_bot_player_in_background),daemon=True)
+            capture_thread.start()
+            window_controller_thread = threading.Thread(target=window_controller.send_keys,daemon=True)
+            window_controller_thread.start()
             self.specific_brawlers_data = []
-            self.Play = Play(*self.load_models())
+            self.Play = Play(*self.load_models(), window_controller)
             self.Time_management = TimeManagement()
             self.lobby_automator = lobby_automator
-            self.Stage_manager = StageManager(Screenshot, data, frame_queue)
+            self.Stage_manager = StageManager(data, frame_queue, self.does_bot_player_in_background, window_controller)
             self.states_requiring_data = ["play_store", "brawl_stars_crashed", "lobby"]
-            if data[0]['automatically_pick']:
+            brawler_menu_btn_coords = find_template_center(frame_queue.get(), load_image(r'state_finder/images_to_detect/brawler_menu_btn.png'))
+            self.lobby_automator.coords_cfg['lobby']['brawlers_btn'] = brawler_menu_btn_coords
+            if data[0]['automatically_pick'] and not self.does_bot_player_in_background:
                 if debug: print("Picking brawler automatically")
                 self.lobby_automator.select_brawler(data[0]['brawler'])
+            if self.does_bot_player_in_background and len(data) > 1:
+                print("WARNING : You have chosen to let the bot play in background, but also submitted multiple brawlers. \nAutomatic brawler picking is disabled when playing in background so you'll have to switch change brawler.")
             self.Play.current_brawler = data[0]['brawler']
             self.no_detections_action_threshold = 60 * 8
             self.initialize_stage_manager()
@@ -76,9 +97,10 @@ def pyla_main(data):
             self.in_cooldown = False
             self.cooldown_start_time = 0
             self.cooldown_duration = 3 * 60
-
+            state_finder_main.check_brawl_stars_crashed = load_toml_as_dict("cfg/general_config.toml")['check_if_brawl_stars_crashed'] == "yes" and not self.does_bot_player_in_background
+            state_finder_main.bot_plays_in_background = self.does_bot_player_in_background
         def initialize_stage_manager(self):
-            self.Stage_manager.Trophy_observer.win_streak = 0
+            self.Stage_manager.Trophy_observer.win_streak = data[0]['win_streak']
             self.Stage_manager.Trophy_observer.current_trophies = data[0]['trophies']
             self.Stage_manager.Trophy_observer.current_wins = data[0]['wins'] if data[0]['wins'] != "" else 0
 
@@ -96,7 +118,7 @@ def pyla_main(data):
         @staticmethod
         def restart_brawl_stars():
             loop = asyncio.new_event_loop()
-            screenshot = Screenshot.take()
+            screenshot = frame_queue.get()
             loop.run_until_complete(async_notify_user("bot_is_stuck", screenshot))
             loop.close()
             print("Bot got stuck. User notified. Pause until closed.")
@@ -182,7 +204,7 @@ def pyla_main(data):
             "Couldn't find LDPlayer window. Using another emulator isn't recommended and can lead to unexpected issues.")
 
     main = Main(
-        lobby_automator=LobbyAutomation(camera, frame_queue)
+        lobby_automator=LobbyAutomation(frame_queue)
     )
     main.main()
     return width, height
@@ -218,4 +240,4 @@ if dpi_scale != 96:
 # Use the smaller ratio to maintain aspect ratio
 scale_factor = min(width_ratio, height_ratio)
 app = App(login, SelectBrawler, pyla_main, all_brawlers, Hub)
-app.start(capture_thread, pyla_version, get_latest_version)
+app.start(pyla_version, get_latest_version)

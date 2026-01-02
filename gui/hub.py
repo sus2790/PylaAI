@@ -79,11 +79,20 @@ class Hub:
         self.general_config.setdefault("monitor", "0")
         self.general_config.setdefault("long_press_star_drop", "no")
         self.general_config.setdefault("trophies_multiplier", 1.0)
+        self.general_config.setdefault("bot_plays_in_background", "no")
+        self.general_config.setdefault("current_emulator", "LDPlayer")
 
         # -----------------------------------------------------------------------------------------
         # Appearance
         # -----------------------------------------------------------------------------------------
         ctk.set_appearance_mode("dark")
+
+        # For showing tooltips in Toplevel windows
+        # For showing tooltips
+        self.tooltip_window = None
+        self._tooltip_after_id = None
+        self._tooltip_owner = None
+        self._tooltip_text = ""
 
         # -----------------------------------------------------------------------------------------
         # Main window
@@ -93,8 +102,10 @@ class Hub:
         self.app.geometry(f"{S(1000)}x{S(750)}")
         self.app.resizable(False, False)
 
-        # For showing tooltips in Toplevel windows
-        self.tooltip_window = None
+        # Hide tooltip on "global" interactions (tab switch, clicks, scroll, key press, focus loss, etc.)
+        for seq in ("<ButtonPress>", "<MouseWheel>", "<KeyPress>", "<FocusOut>"):
+            self.app.bind_all(seq, self._hide_tooltip, add="+")
+        self.app.bind("<Configure>", self._hide_tooltip, add="+")  # window move/resize
 
         # -----------------------------------------------------------------------------------------
         # Main TabView
@@ -139,49 +150,96 @@ class Hub:
     # ---------------------------------------------------------------------------------------------
     #  Tooltip Handler
     # ---------------------------------------------------------------------------------------------
-    def attach_tooltip(self, widget, text):
-        """Attach a tooltip to a widget by creating a small Toplevel on hover,
-        and ensure it gets destroyed as soon as the mouse leaves (even quickly).
+    def _pointer_over_widget(self, widget) -> bool:
+        if widget is None or not widget.winfo_exists():
+            return False
+        try:
+            px, py = widget.winfo_pointerx(), widget.winfo_pointery()
+            x, y = widget.winfo_rootx(), widget.winfo_rooty()
+            w, h = widget.winfo_width(), widget.winfo_height()
+            return x <= px <= x + w and y <= py <= y + h
+        except tk.TclError:
+            return False
+
+    def _hide_tooltip(self, _event=None):
+        # cancel delayed show if pending
+        if self._tooltip_after_id is not None:
+            try:
+                self.app.after_cancel(self._tooltip_after_id)
+            except Exception:
+                pass
+            self._tooltip_after_id = None
+
+        # destroy current tooltip window
+        if self.tooltip_window is not None:
+            try:
+                self.tooltip_window.destroy()
+            except Exception:
+                pass
+            self.tooltip_window = None
+
+        self._tooltip_owner = None
+        self._tooltip_text = ""
+
+    def attach_tooltip(self, widget, text, delay_ms: int = 250):
+        """
+        Robust tooltip:
+        - shows after delay
+        - hides on Leave, Unmap (tab switch), Destroy, clicks/scroll/keys (via global binds)
+        - prevents stuck tooltips when switching tabs
         """
 
-        def show_tooltip(event):
-            # Destroy any tooltip that might already exist
-            hide_tooltip(None)
+        def schedule_show(event=None):
+            # reset any existing tooltip
+            self._hide_tooltip()
 
-            # Create a small Toplevel for the tooltip
-            self.tooltip_window = ctk.CTkToplevel(self.app)
-            self.tooltip_window.overrideredirect(True)
-            self.tooltip_window.attributes("-topmost", True)
+            self._tooltip_owner = widget
+            self._tooltip_text = text
 
-            # Position near the cursor
-            x = event.x_root + 10
-            y = event.y_root + 10
-            self.tooltip_window.geometry(f"+{x}+{y}")
+            def do_show():
+                # widget may have disappeared / tab switched
+                if (self._tooltip_owner is None
+                        or not self._tooltip_owner.winfo_exists()
+                        or not self._tooltip_owner.winfo_viewable()
+                        or not self._pointer_over_widget(self._tooltip_owner)):
+                    self._hide_tooltip()
+                    return
 
-            # Label inside the Toplevel
-            label = ctk.CTkLabel(
-                self.tooltip_window,
-                text=text,
-                fg_color="#333333",
-                text_color="#FFFFFF",
-                corner_radius=S(6),
-                font=("Arial", S(12))
-            )
-            label.pack(padx=S(5), pady=S(3))
+                # create tooltip
+                self.tooltip_window = ctk.CTkToplevel(self.app)
+                self.tooltip_window.overrideredirect(True)
+                self.tooltip_window.attributes("-topmost", True)
 
-            #  If mouse enters the tooltip window itself, destroy the tooltip.
-            #  This prevents "orphaned" tooltips if the mouse quickly jumps
-            #  from the label onto the tooltip.
-            self.tooltip_window.bind("<Enter>", hide_tooltip)
+                # position near cursor
+                px = self.app.winfo_pointerx()
+                py = self.app.winfo_pointery()
+                self.tooltip_window.geometry(f"+{px + 12}+{py + 12}")
 
-        def hide_tooltip(_):
-            if self.tooltip_window is not None:
-                self.tooltip_window.destroy()
-                self.tooltip_window = None
+                label = ctk.CTkLabel(
+                    self.tooltip_window,
+                    text=self._tooltip_text,
+                    fg_color="#333333",
+                    text_color="#FFFFFF",
+                    corner_radius=S(6),
+                    font=("Arial", S(12))
+                )
+                label.pack(padx=S(6), pady=S(4))
 
-        # Bind to label’s <Enter> and <Leave>
-        widget.bind("<Enter>", show_tooltip)
-        widget.bind("<Leave>", hide_tooltip)
+                # if mouse enters tooltip itself, hide (avoids "stuck" hovering on tooltip)
+                self.tooltip_window.bind("<Enter>", self._hide_tooltip)
+                self.tooltip_window.bind("<Leave>", self._hide_tooltip)
+
+            self._tooltip_after_id = self.app.after(delay_ms, do_show)
+
+        def on_leave(_event=None):
+            self._hide_tooltip()
+
+        # Bindings
+        widget.bind("<Enter>", schedule_show, add="+")
+        widget.bind("<Leave>", on_leave, add="+")
+        widget.bind("<Unmap>", on_leave, add="+")  # IMPORTANT: tab switching / frame hidden
+        widget.bind("<Destroy>", on_leave, add="+")  # safety
+        widget.bind("<ButtonPress>", on_leave, add="+")  # click on the widget -> hide
 
     # ---------------------------------------------------------------------------------------------
     #  Overview Tab
@@ -388,7 +446,7 @@ class Hub:
         self.emulator_frame.grid(row=row_, column=0, columnspan=2, pady=S(10))
         row_ += 1
 
-        self.emu_var = tk.StringVar(value="LDPlayer")  # default
+        self.emu_var = tk.StringVar(value=self.general_config["current_emulator"])  # default
 
         def handle_emulator_choice(choice):
             self.emu_var.set(choice)
@@ -398,6 +456,12 @@ class Hub:
                 # If user selects LDPlayer, we can keep crash detection as is or set it to "yes"
                 # (Comment out if you want it unchanged)
                 self.general_config["check_if_brawl_stars_crashed"] = "yes"
+            if choice == "BlueStacks":
+                self.general_config["current_emulator"] = "BlueStacks"
+            elif choice == "LDPlayer":
+                self.general_config["current_emulator"] = "LDPlayer"
+            else:
+                self.general_config["current_emulator"] = "Others"
             save_dict_as_toml(self.general_config, self.general_config_path)
             refresh_emu_buttons()
 
@@ -503,9 +567,9 @@ class Hub:
         container.pack(expand=True, fill="both")
 
         # Extra space to avoid tooltip clipping
-        container.grid_rowconfigure(0, minsize=S(70))
+        container.grid_rowconfigure(0, minsize=S(10))
 
-        row_idx = 1
+        row_idx = 0
 
         # -----------------------------------------------------------------------------------------
         # Helper to create labeled entries in either bot_config or general_config
@@ -552,6 +616,33 @@ class Hub:
 
             row_idx += 1
 
+        lbl_background = ctk.CTkLabel(container, text="Background :", font=("Arial", S(18)))
+        lbl_background.grid(row=row_idx, column=0, sticky="e", padx=S(20), pady=S(10))
+        background_var = tk.BooleanVar(
+            value=(str(self.general_config["bot_plays_in_background"]).lower() in ["yes", "true"])
+        )
+
+        def toggle_background():
+            self.general_config["bot_plays_in_background"] = "yes" if background_var.get() else "no"
+            save_dict_as_toml(self.general_config, self.general_config_path)
+
+        background_cb = ctk.CTkCheckBox(
+            container,
+            text="",
+            variable=background_var,
+            command=toggle_background,
+            fg_color="#AA2A2A",
+            hover_color="#BB3A3A",
+            width=S(30),
+            height=S(30)
+        )
+        background_cb.grid(row=row_idx, column=1, sticky="w", padx=S(20), pady=S(10))
+        bg_tip = "Allows Pyla to play even when it's not the active window (must not be minimized)\nWARNING : THIS IS EXPERIMENTAL AND HAS DISADVANTAGES \nAutomatic brawler selection does NOT work. Movement is jittery. Stardrop long pressing doesn't work."
+        self.attach_tooltip(lbl_background, bg_tip)
+        self.attach_tooltip(background_cb, bg_tip)
+
+        row_idx += 1
+
         # 6) Minimum Movement Delay (bot_config)
         create_labeled_entry(
             label_text="Minimum Movement Delay:",
@@ -588,38 +679,31 @@ class Hub:
             tooltip_text="For how long (in seconds) will the bot try to go in a different position to unstuck itself before going back to normal."
         )
 
-        create_labeled_entry(
-            label_text="Trophies Multiplier:",
-            config_key="trophies_multiplier",
-            convert_func=int,
-            use_general_config=True,
-            tooltip_text="Enter the multiplier for trophies gained per match (for example : 2 for brawl arena)."
-        )
+        if len(monitors) > 1:
+            lbl_monitor = ctk.CTkLabel(container, text="Monitor (0=primary)", font=("Arial", S(18)))
+            lbl_monitor.grid(row=row_idx, column=0, sticky="e", padx=S(20), pady=S(10))
 
-        lbl_monitor = ctk.CTkLabel(container, text="Monitor (0=primary)", font=("Arial", S(18)))
-        lbl_monitor.grid(row=row_idx, column=0, sticky="e", padx=S(20), pady=S(10))
+            monitor_values = monitors
+            monitor_var = tk.StringVar(value=self.general_config["monitor"])
 
-        monitor_values = monitors
-        monitor_var = tk.StringVar(value=self.general_config["monitor"])
+            def on_monitor_change(choice):
+                self.general_config["monitor"] = choice
+                save_dict_as_toml(self.general_config, self.general_config_path)
 
-        def on_monitor_change(choice):
-            self.general_config["monitor"] = choice
-            save_dict_as_toml(self.general_config, self.general_config_path)
-
-        monitor_menu = ctk.CTkOptionMenu(
-            container,
-            values=monitor_values,
-            command=on_monitor_change,
-            variable=monitor_var,
-            font=("Arial", S(16)),
-            fg_color="#AA2A2A",
-            button_color="#AA2A2A",
-            button_hover_color="#BB3A3A",
-            width=S(100),
-            height=S(35)
-        )
-        monitor_menu.grid(row=row_idx, column=1, padx=S(20), pady=S(10), sticky="w")
-        row_idx += 1
+            monitor_menu = ctk.CTkOptionMenu(
+                container,
+                values=monitor_values,
+                command=on_monitor_change,
+                variable=monitor_var,
+                font=("Arial", S(16)),
+                fg_color="#AA2A2A",
+                button_color="#AA2A2A",
+                button_hover_color="#BB3A3A",
+                width=S(100),
+                height=S(35)
+            )
+            monitor_menu.grid(row=row_idx, column=1, padx=S(20), pady=S(10), sticky="w")
+            row_idx += 1
 
         # 4) CPU/GPU (store in general_config)
         lbl_gpu = ctk.CTkLabel(container, text="Use GPU (CPU/Auto):", font=("Arial", S(18)))
@@ -702,6 +786,14 @@ class Hub:
             tooltip_text='Amount of "yellow" pixels the bot must detect to consider the super is ready.'
         )
 
+        create_labeled_entry(
+            label_text="Trophies Multiplier:",
+            config_key="trophies_multiplier",
+            convert_func=int,
+            use_general_config=True,
+            tooltip_text="Enter the multiplier for trophies gained per match (for example : 2 for brawl arena)."
+        )
+
         # 10) Gadget Detection Pixel Threshold (bot_config)
         create_labeled_entry(
             label_text="Gadget Detection Pixel Treshold:",
@@ -720,29 +812,29 @@ class Hub:
             tooltip_text='Amount of "purple" pixels the bot must detect to consider a hypercharge is ready.'
         )
 
-        # 3) Console Debug (store in general_config)
-        lbl_debug = ctk.CTkLabel(container, text="Console Debug:", font=("Arial", S(18)))
-        lbl_debug.grid(row=row_idx, column=0, sticky="e", padx=S(20), pady=S(10))
-        debug_var = tk.BooleanVar(
-            value=(str(self.general_config["super_debug"]).lower() in ["yes", "true"])
-        )
-
-        def toggle_debug():
-            self.general_config["super_debug"] = "yes" if debug_var.get() else "no"
-            save_dict_as_toml(self.general_config, self.general_config_path)
-
-        debug_cb = ctk.CTkCheckBox(
-            container,
-            text="",
-            variable=debug_var,
-            command=toggle_debug,
-            fg_color="#AA2A2A",
-            hover_color="#BB3A3A",
-            width=S(30),
-            height=S(30)
-        )
-        debug_cb.grid(row=row_idx, column=1, sticky="w", padx=S(20), pady=S(10))
-        row_idx += 1
+        # # 3) Console Debug (store in general_config)
+        # lbl_debug = ctk.CTkLabel(container, text="Console Debug:", font=("Arial", S(18)))
+        # lbl_debug.grid(row=row_idx, column=0, sticky="e", padx=S(20), pady=S(10))
+        # debug_var = tk.BooleanVar(
+        #     value=(str(self.general_config["super_debug"]).lower() in ["yes", "true"])
+        # )
+        #
+        # def toggle_debug():
+        #     self.general_config["super_debug"] = "yes" if debug_var.get() else "no"
+        #     save_dict_as_toml(self.general_config, self.general_config_path)
+        #
+        # debug_cb = ctk.CTkCheckBox(
+        #     container,
+        #     text="",
+        #     variable=debug_var,
+        #     command=toggle_debug,
+        #     fg_color="#AA2A2A",
+        #     hover_color="#BB3A3A",
+        #     width=S(30),
+        #     height=S(30)
+        # )
+        # debug_cb.grid(row=row_idx, column=1, sticky="w", padx=S(20), pady=S(10))
+        # row_idx += 1
 
         # 1) Max IPS (store in general_config)
         create_labeled_entry(

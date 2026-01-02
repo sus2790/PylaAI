@@ -9,6 +9,7 @@ from state_finder.main import get_state
 from detect import Detect
 from utils import load_toml_as_dict, count_hsv_pixels, load_brawlers_info
 
+
 pyautogui.PAUSE = 0
 
 
@@ -21,7 +22,7 @@ TILE_SIZE = 65 * scale_factor
 
 class Movement:
 
-    def __init__(self):
+    def __init__(self, window_controller):
         self.fix_movement_keys = {
             "delay_to_trigger": load_toml_as_dict("cfg/bot_config.toml")["unstuck_movement_delay"],
             "duration": load_toml_as_dict("cfg/bot_config.toml")["unstuck_movement_hold_time"],
@@ -43,8 +44,8 @@ class Movement:
         self.is_gadget_ready = False
         self.time_since_hypercharge_checked = time.time()
         self.is_hypercharge_ready = False
-
-
+        self.window_controller = window_controller
+        self.bot_plays_in_background = load_toml_as_dict("cfg/general_config.toml")["bot_plays_in_background"] == "yes"
     @staticmethod
     def get_enemy_pos(enemy):
         return (enemy[0] + enemy[2]) / 2, (enemy[1] + enemy[3]) / 2
@@ -75,21 +76,29 @@ class Movement:
             return "W" if direction_y > 0 else "S"
         return "S" if direction_y > 0 else "W"
 
-    @staticmethod
-    def attack():
-        pyautogui.press("m")
+    def attack(self):
+        if self.bot_plays_in_background:
+            self.window_controller.send_keys_to_window(["m"])
+        else:
+            pyautogui.press("m")
 
-    @staticmethod
-    def use_hypercharge():
-        pyautogui.press("h")
+    def use_hypercharge(self):
+        if self.bot_plays_in_background:
+            self.window_controller.send_keys_to_window(["h"])
+        else:
+            pyautogui.press("h")
 
-    @staticmethod
-    def use_gadget():
-        pyautogui.press("g")
+    def use_gadget(self):
+        if self.bot_plays_in_background:
+            self.window_controller.send_keys_to_window(["g"])
+        else:
+            pyautogui.press("g")
 
-    @staticmethod
-    def use_super():
-        pyautogui.press("e")
+    def use_super(self):
+        if self.bot_plays_in_background:
+            self.window_controller.send_keys_to_window(["e"])
+        else:
+            pyautogui.press("e")
 
     @staticmethod
     def get_random_attack_key():
@@ -141,8 +150,8 @@ class Movement:
 
 class Play(Movement):
 
-    def __init__(self, main_info_model, specific_info_model, starting_screen_model, tile_detector_model):
-        super().__init__()
+    def __init__(self, main_info_model, specific_info_model, starting_screen_model, tile_detector_model, window_controller):
+        super().__init__(window_controller)
 
         self.specific_game_data = {}
         self.Detect_main_info = Detect(main_info_model, classes=['enemy', 'teammate', 'player'])
@@ -165,7 +174,6 @@ class Play(Movement):
                                                     'ally_ability'])
         self.Detect_starting_screen = Detect(starting_screen_model)
         self.tile_detector_model_classes = load_toml_as_dict("cfg/bot_config.toml")["wall_model_classes"]
-
         self.Detect_tile_detector = Detect(
             tile_detector_model,
             classes=self.tile_detector_model_classes
@@ -209,8 +217,7 @@ class Play(Movement):
     def load_brawler_ranges(brawlers_info=None):
         if not brawlers_info:
             brawlers_info = load_brawlers_info()
-        current_width, current_height = pyautogui.size()
-        screen_size_ratio = min(current_height / 1080, current_width / 1920)
+        screen_size_ratio = min(height / 1080, width / 1920)
         ranges = {}
         for brawler, info in brawlers_info.items():
             attack_range = info['attack_range']
@@ -344,11 +351,16 @@ class Play(Movement):
 
             keys_to_keyUp.append(key)
 
-        for key in keys_to_keyDown:
-            pyautogui.keyDown(key)
-
-        for key in keys_to_keyUp:
-            pyautogui.keyUp(key)
+        if self.bot_plays_in_background:
+            self.window_controller.keys_down(keys_to_keyDown)
+        else:
+            for key in keys_to_keyDown:
+                pyautogui.keyDown(key)
+        if self.bot_plays_in_background:
+            self.window_controller.keys_up(keys_to_keyUp)
+        else:
+            for key in keys_to_keyUp:
+                pyautogui.keyUp(key)
 
         self.keys_hold = keys_to_keyDown
 
@@ -533,7 +545,10 @@ class Play(Movement):
                     self.time_since_last_proceeding = current_time
                 else:
                     print("haven't detected the player in a while proceeding")
-                    pyautogui.press("q")
+                    if self.bot_plays_in_background:
+                        self.window_controller.send_keys_to_window(["q"])
+                    else:
+                        pyautogui.press("q")
                     self.time_since_last_proceeding = time.time()
             return
         self.time_since_last_proceeding = time.time()

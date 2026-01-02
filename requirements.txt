@@ -16,3 +16,4 @@ shapely
 ultralytics
 bettercam
 packaging
+pywin32

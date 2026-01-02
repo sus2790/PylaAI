@@ -21,6 +21,9 @@ from onnxtr.models import ocr_predictor
 import easyocr
 import json
 
+from window_controller import WindowController
+
+
 def extract_text_and_positions(image_path):
     results = reader.readtext(image_path)
     text_details = {}
@@ -108,9 +111,9 @@ class DefaultEasyOCR:
 
 class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
 
-    def __init__(self, camera):
+    def __init__(self, camera, window_controller):
         self.camera = camera
-
+        self.window_controller = window_controller
     def take(self):
         try:
             image = self.camera.grab()
@@ -119,8 +122,8 @@ class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
             image = None
         if image is not None:
             image = Image.fromarray(image)
-
-        while image is None:
+        c = 0
+        while image is None and c < 5:
             try:
                 image = self.camera.grab()
                 if image is not None:
@@ -128,7 +131,18 @@ class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
             except Exception as e:
                 print(f"Error capturing screenshot: {e}")
                 image = None
+                c += 1
+        if image is None and self.window_controller.setup:
+            image = self.window_controller.screenshot()
         return image
+
+def load_toml_as_dict(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            return toml.load(f)
+    else:
+        return {}
+
 
 reader = DefaultEasyOCR()
 api_base_url = "localhost"
@@ -174,12 +188,7 @@ def find_template_center(main_img, template):
         return False
 
 
-def load_toml_as_dict(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
-            return toml.load(f)
-    else:
-        return {}
+
 
 
 def save_dict_as_toml(data, file_path):
