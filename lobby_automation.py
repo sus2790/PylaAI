@@ -3,7 +3,6 @@ from queue import Empty
 
 import numpy as np
 import pyautogui
-from utils import click
 from utils import extract_text_and_positions, count_hsv_pixels, load_toml_as_dict
 
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
@@ -16,24 +15,24 @@ scale_factor = min(width_ratio, height_ratio)
 
 class LobbyAutomation:
 
-    def __init__(self, frame_queue):
+    def __init__(self, frame_queue, window_controller):
         self.coords_cfg = load_toml_as_dict("./cfg/lobby_config.toml")
         self.frame_queue = frame_queue
+        self.window_controller = window_controller
 
-    @staticmethod
-    def check_for_idle(frame):
+    def check_for_idle(self, frame):
         screenshot = frame
         screenshot = screenshot.crop(
             (int(400 * width_ratio), int(380 * height_ratio), int(1500 * width_ratio), int(700 * height_ratio)))
         gray_pixels = count_hsv_pixels(screenshot, (0, 0, 66), (0, 0, 66))
         if debug: print("gray pixels (if > 1000 then bot will try to unidle) :", gray_pixels)
         if gray_pixels > 1000:
-            click(int(535 * width_ratio), int(615 * height_ratio))
+            self.window_controller.click(int(535 * width_ratio), int(615 * height_ratio))
 
     def select_brawler(self, brawler):
         x, y = self.coords_cfg['lobby']['brawlers_btn'][0] * width_ratio, self.coords_cfg['lobby']['brawlers_btn'][
             1] * height_ratio
-        click(x, y)
+        self.window_controller.click(x, y)
         c = 0
         for i in range(50):
             try:
@@ -61,22 +60,17 @@ class LobbyAutomation:
             if brawler in reworked_results.keys():
                 if debug: print("Found brawler ", brawler)
                 x, y = reworked_results[brawler]['center']
-                click(int(x * 1.5385), int(y * 1.5385))
+                self.window_controller.click(int(x * 1.5385), int(y * 1.5385))
                 time.sleep(1)
-                select_x, select_y = self.coords_cfg['lobby']['select_btn'][0] * width_ratio, \
-                                     self.coords_cfg['lobby']['select_btn'][1] * height_ratio
-                click(select_x, select_y)
+                select_x, select_y = self.coords_cfg['lobby']['select_btn'][0], \
+                                     self.coords_cfg['lobby']['select_btn'][1]
+                self.window_controller.click(select_x, select_y, already_include_ratio=False)
+                time.sleep(0.5)
                 if debug: print("Selected brawler ", brawler)
                 break
             if c == 0:
-                pyautogui.moveTo(int(1700 * width_ratio), int(900 * height_ratio))
-                pyautogui.mouseDown()
-                pyautogui.moveTo(int(1700 * width_ratio), int(850 * height_ratio), duration=1)
-                pyautogui.mouseUp()
+                self.window_controller.swipe(int(1700 * width_ratio), int(900 * height_ratio), int(1700 * width_ratio), int(850 * height_ratio), duration=0.8)
                 c += 1
                 continue  # Some weird bug causing the first frame to not get any results so this redoes it
-            pyautogui.moveTo(int(1700 * width_ratio), int(900 * height_ratio))
-            pyautogui.mouseDown()
-            pyautogui.moveTo(int(1700 * width_ratio), int(650 * height_ratio), duration=0.8)
-            pyautogui.mouseUp()
+            self.window_controller.swipe(int(1700 * width_ratio), int(900 * height_ratio), int(1700 * width_ratio), int(650 * height_ratio), duration=0.8)
             time.sleep(1)

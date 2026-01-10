@@ -450,7 +450,7 @@ class Hub:
 
         def handle_emulator_choice(choice):
             self.emu_var.set(choice)
-            if choice in ["BlueStacks", "Others"]:
+            if choice in ["BlueStacks", "MEmu", "Others"]:
                 self.general_config["check_if_brawl_stars_crashed"] = "no"
             else:
                 # If user selects LDPlayer, we can keep crash detection as is or set it to "yes"
@@ -460,6 +460,8 @@ class Hub:
                 self.general_config["current_emulator"] = "BlueStacks"
             elif choice == "LDPlayer":
                 self.general_config["current_emulator"] = "LDPlayer"
+            elif choice == "MEmu":
+                self.general_config["current_emulator"] = "MEmu"
             else:
                 self.general_config["current_emulator"] = "Others"
             save_dict_as_toml(self.general_config, self.general_config_path)
@@ -482,11 +484,13 @@ class Hub:
 
         self.btn_ldplayer = create_emu_button(self.emulator_frame, "LDPlayer")
         self.btn_bluestacks = create_emu_button(self.emulator_frame, "BlueStacks")
+        self.btn_memu = create_emu_button(self.emulator_frame, "MEmu")
         self.btn_others = create_emu_button(self.emulator_frame, "Others")
 
         self.btn_ldplayer.grid(row=0, column=0, padx=S(10), pady=S(5))
         self.btn_bluestacks.grid(row=0, column=1, padx=S(10), pady=S(5))
-        self.btn_others.grid(row=0, column=2, padx=S(10), pady=S(5))
+        self.btn_memu.grid(row=0, column=2, padx=S(10), pady=S(5))
+        self.btn_others.grid(row=0, column=3, padx=S(10), pady=S(5))
 
         def refresh_emu_buttons():
             curr_emu = self.emu_var.get()
@@ -499,6 +503,7 @@ class Hub:
 
             color(self.btn_ldplayer, "LDPlayer")
             color(self.btn_bluestacks, "BlueStacks")
+            color(self.btn_memu, "MEmu")
             color(self.btn_others, "Others")
 
         refresh_emu_buttons()

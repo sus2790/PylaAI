@@ -7,4 +7,4 @@ gadget = 0.5
 hypercharge = 1.0
 super = 0.1
 wall_detection = 0.3
-no_detection_proceed = 6
+no_detection_proceed = 6.5

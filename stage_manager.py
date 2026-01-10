@@ -56,7 +56,7 @@ def load_image(image_path):
 
 class StageManager:
 
-    def __init__(self, brawlers_data, frame_queue, bot_plays_in_background, window_controller):
+    def __init__(self, brawlers_data, frame_queue, lobby_automator, window_controller):
         self.states = {
             'shop': self.quit_shop,
             'brawler_selection': self.quit_shop,
@@ -68,7 +68,7 @@ class StageManager:
             "brawl_stars_crashed": self.start_brawl_stars,
             'star_drop': self.click_star_drop
         }
-        self.Lobby_automation = LobbyAutomation(frame_queue)
+        self.Lobby_automation = lobby_automator
         self.lobby_config = load_toml_as_dict("./cfg/lobby_config.toml")
         self.brawl_stars_icon = load_image("state_finder/images_to_detect/brawl_stars_icon.png")
         self.brawl_stars_icon_big = load_image("state_finder/images_to_detect/brawl_stars_icon_big.png")
@@ -79,7 +79,6 @@ class StageManager:
         self.time_since_last_stat_change = time.time()
         self.frame_queue = frame_queue
         self.long_press_star_drop = load_toml_as_dict("./cfg/general_config.toml")["long_press_star_drop"]
-        self.bot_plays_in_background = bot_plays_in_background
         self.window_controller = window_controller
 
     def start_brawl_stars(self, frame):
@@ -87,11 +86,11 @@ class StageManager:
         for key in list(data.keys()):
             if key.replace(" ", "") in ["brawl", "brawlstars", "stars"]:
                 x, y = data[key]['center']
-                pyautogui.click(x, y)
+                self.window_controller.click(x, y)
                 return
 
         x, y = self.lobby_config['lobby']['brawl_stars_icon'][0]*width_ratio, self.lobby_config['lobby']['brawl_stars_icon'][1]*height_ratio
-        pyautogui.click(x, y)
+        self.window_controller.click(x, y)
 
     @staticmethod
     def validate_trophies(trophies_string):
@@ -143,7 +142,7 @@ class StageManager:
             self.Trophy_observer.current_wins = self.brawlers_pick_data[0]['wins'] if self.brawlers_pick_data[0]['wins'] != "" else 0
             self.Trophy_observer.win_streak = self.brawlers_pick_data[0]['win_streak']
             next_brawler_name = self.brawlers_pick_data[0]['brawler']
-            if self.brawlers_pick_data[0]["automatically_pick"] and not self.bot_plays_in_background:
+            if self.brawlers_pick_data[0]["automatically_pick"]:
                 if debug: print("Picking next automatically picked brawler")
                 try:
                     screenshot = self.frame_queue.get(timeout=1)
@@ -154,7 +153,7 @@ class StageManager:
                     print("Trying to reach the lobby to switch brawler")
 
                 while current_state != "lobby":
-                    pyautogui.press("q")
+                    self.window_controller.press_key("Q")
                     if debug: print("Pressed Q to return to lobby")
                     time.sleep(1)
                 self.Lobby_automation.select_brawler(next_brawler_name)
@@ -162,10 +161,8 @@ class StageManager:
                 print("Next brawler is in manual mode, waiting 10 seconds to let user switch.")
 
         # q btn is over the start btn
-        if self.bot_plays_in_background:
-            self.window_controller.send_keys_to_window(["q"])
-        else:
-            pyautogui.press("q")
+        self.window_controller.reset_all()
+        self.window_controller.press_key("Q")
         print("Pressed Q to start a match")
 
     def click_brawl_stars(self, frame):
@@ -173,18 +170,12 @@ class StageManager:
         detection = find_template_center(screenshot, self.brawl_stars_icon)
         if detection:
             x, y = detection
-            pyautogui.click(x=x + 50, y=y)
-
+            self.window_controller.click(x=x + 50, y=y)
     def click_star_drop(self):
-        if self.long_press_star_drop == "yes" and not self.bot_plays_in_background:
-            pyautogui.keyDown("q")
-            time.sleep(10)
-            pyautogui.keyUp("q")
+        if self.long_press_star_drop == "yes":
+            self.window_controller.press_key("Q",10)
         else:
-            if self.bot_plays_in_background:
-                self.window_controller.send_keys_to_window(["q"])
-            else:
-                pyautogui.press("q")
+            self.window_controller.press_key("Q")
 
     def end_game(self):
         screenshot = self.frame_queue.get()
@@ -228,33 +219,21 @@ class StageManager:
                             os.remove("latest_brawler_data.json")
                         time.sleep(10 ** 5)
                         return
-            if self.bot_plays_in_background:
-                self.window_controller.send_keys_to_window(["q"])
-            else:
-                pyautogui.press("q")
+            self.window_controller.press_key("Q")
             if debug: print("Game has ended, pressing Q")
             time.sleep(3)
             screenshot = self.frame_queue.get()
             current_state = get_state(screenshot)
         if debug: print("Game has ended", current_state)
 
-    @staticmethod
-    def quit_shop():
-        pyautogui.click(100, 60)
-
-    @staticmethod
-    def click_coords(coords, in_between=None):
-        for coord in coords:
-            pyautogui.click(coord)
-
-            if in_between:
-                pyautogui.click(in_between)
+    def quit_shop(self):
+        self.window_controller.click(100*width_ratio, 60*height_ratio)
 
     def close_pop_up(self):
         screenshot = self.frame_queue.get()
         popup_location = find_template_center(screenshot, self.close_popup_icon)
         if popup_location:
-            pyautogui.click(popup_location)
+            self.window_controller.click(popup_location)
 
     def do_state(self, state, data=None):
         if data:

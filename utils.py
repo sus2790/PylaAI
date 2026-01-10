@@ -111,30 +111,38 @@ class DefaultEasyOCR:
 
 class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
 
-    def __init__(self, camera, window_controller):
+    def __init__(self, camera, window_controller, does_bot_play_in_background):
         self.camera = camera
         self.window_controller = window_controller
+        self.does_bot_play_in_background = does_bot_play_in_background
+
     def take(self):
-        try:
-            image = self.camera.grab()
-        except Exception as e:
-            print(f"Error capturing screenshot: {e}")
-            image = None
-        if image is not None:
-            image = Image.fromarray(image)
-        c = 0
-        while image is None and c < 5:
+        if not self.does_bot_play_in_background:
             try:
                 image = self.camera.grab()
-                if image is not None:
-                    image = Image.fromarray(image)
             except Exception as e:
                 print(f"Error capturing screenshot: {e}")
                 image = None
-                c += 1
-        if image is None and self.window_controller.setup:
-            image = self.window_controller.screenshot()
-        return image
+            if image is not None:
+                image = Image.fromarray(image)
+            c = 0
+            while image is None and c < 5:
+                try:
+                    image = self.camera.grab()
+                    if image is not None:
+                        image = Image.fromarray(image)
+                except Exception as e:
+                    print(f"Error capturing screenshot: {e}")
+                    image = None
+                    c += 1
+            if image is None:
+                if self.window_controller.setup:
+                    image = self.window_controller.screenshot()
+                else:
+                    raise ValueError("Could not capture screenshot from camera or window.")
+            return image
+        else:
+            return self.window_controller.screenshot()
 
 def load_toml_as_dict(file_path):
     if os.path.exists(file_path):
@@ -294,14 +302,6 @@ def update_icons():
             print(f"Downloaded and updated {icon_name}")
         else:
             print(f"Failed to download {icon_name}. Status code: {response.status_code}")
-
-def click(x, y):
-    x = int(x)
-    y = int(y)
-    #clicks without using pyautogui
-    ctypes.windll.user32.SetCursorPos(x, y)
-    ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)  # left down
-    ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)  # left up
 
 def get_latest_version():
     url = f'https://{api_base_url}/check_version'

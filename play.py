@@ -2,6 +2,7 @@ import math
 import random
 import time
 
+import cv2
 import pyautogui
 from shapely import LineString
 from shapely.geometry import Polygon
@@ -14,11 +15,9 @@ pyautogui.PAUSE = 0
 
 
 orig_screen_width, orig_screen_height = 1920, 1080
+brawl_stars_width, brawl_stars_height = 1774, 998
 width, height = pyautogui.size()
-width_ratio = width / orig_screen_width
-height_ratio = height / orig_screen_height
-scale_factor = min(width_ratio, height_ratio)
-TILE_SIZE = 65 * scale_factor
+
 
 class Movement:
 
@@ -46,6 +45,15 @@ class Movement:
         self.is_hypercharge_ready = False
         self.window_controller = window_controller
         self.bot_plays_in_background = load_toml_as_dict("cfg/general_config.toml")["bot_plays_in_background"] == "yes"
+        if not self.bot_plays_in_background:
+            self.width_ratio = width / orig_screen_width
+            self.height_ratio = height / orig_screen_height
+        else:
+            self.width_ratio = window_controller.width / brawl_stars_width
+            self.height_ratio = window_controller.height / brawl_stars_height
+
+        scale_factor = min(self.width_ratio, self.height_ratio)
+        self.TILE_SIZE = 65 * scale_factor
     @staticmethod
     def get_enemy_pos(enemy):
         return (enemy[0] + enemy[2]) / 2, (enemy[1] + enemy[3]) / 2
@@ -77,28 +85,16 @@ class Movement:
         return "S" if direction_y > 0 else "W"
 
     def attack(self):
-        if self.bot_plays_in_background:
-            self.window_controller.send_keys_to_window(["m"])
-        else:
-            pyautogui.press("m")
+        self.window_controller.press_key("M")
 
     def use_hypercharge(self):
-        if self.bot_plays_in_background:
-            self.window_controller.send_keys_to_window(["h"])
-        else:
-            pyautogui.press("h")
+        self.window_controller.press_key("H")
 
     def use_gadget(self):
-        if self.bot_plays_in_background:
-            self.window_controller.send_keys_to_window(["g"])
-        else:
-            pyautogui.press("g")
+        self.window_controller.press_key("G")
 
     def use_super(self):
-        if self.bot_plays_in_background:
-            self.window_controller.send_keys_to_window(["e"])
-        else:
-            pyautogui.press("e")
+        self.window_controller.press_key("E")
 
     @staticmethod
     def get_random_attack_key():
@@ -298,7 +294,9 @@ class Play(Movement):
         data = self.Detect_main_info.detect_objects(frame, conf_tresh=0.7)
         return data
 
-    def is_path_blocked(self, player_pos, move_direction, walls, distance=TILE_SIZE):  # Increased distance
+    def is_path_blocked(self, player_pos, move_direction, walls, distance=None):  # Increased distance
+        if distance is None:
+            distance = self.TILE_SIZE
         dx, dy = 0, 0
         if 'w' in move_direction.lower():
             dy -= distance
@@ -341,26 +339,15 @@ class Play(Movement):
         keys_to_keyDown = []
         keys_to_keyUp = []
         for key in ['w', 'a', 'd', 's']:
-            if key in self.keys_hold and key in movement:
-                keys_to_keyDown.append(key)
-                continue
-
             if key in movement:
                 keys_to_keyDown.append(key)
-                continue
+            else:
+                keys_to_keyUp.append(key)
 
-            keys_to_keyUp.append(key)
-
-        if self.bot_plays_in_background:
+        if keys_to_keyDown:
             self.window_controller.keys_down(keys_to_keyDown)
-        else:
-            for key in keys_to_keyDown:
-                pyautogui.keyDown(key)
-        if self.bot_plays_in_background:
-            self.window_controller.keys_up(keys_to_keyUp)
-        else:
-            for key in keys_to_keyUp:
-                pyautogui.keyUp(key)
+
+        self.window_controller.keys_up(keys_to_keyUp)
 
         self.keys_hold = keys_to_keyDown
 
@@ -377,23 +364,21 @@ class Play(Movement):
         return movement
 
     def check_if_hypercharge_ready(self, frame):
-        screenshot = frame.crop((1280 * width_ratio, 890 * height_ratio, 1400 * width_ratio, 1000 * height_ratio))
+        screenshot = frame.crop((1220 * self.width_ratio, 860 * self.height_ratio, 1400 * self.width_ratio, 1000 * self.height_ratio))
         purple_pixels = count_hsv_pixels(screenshot, (137, 158, 159), (179, 255, 255))
-
         if purple_pixels > self.hypercharge_pixels_minimum:
-            # print("hyper charge ready", purple_pixels)
             return True
         return False
 
     def check_if_gadget_ready(self, frame):
-        screenshot = frame.crop((1500 * width_ratio, 880 * height_ratio, 1630 * width_ratio, 1020 * height_ratio))
+        screenshot = frame.crop((1450 * self.width_ratio, 860 * self.height_ratio, 1630 * self.width_ratio, 1020 * self.height_ratio))
         green_pixels = count_hsv_pixels(screenshot, (57, 219, 165), (62, 255, 255))
         if green_pixels > self.gadget_pixels_minimum:
             return True
         return False
 
     def check_if_super_ready(self, frame):
-        screenshot = frame.crop((1408 * width_ratio, 802 * height_ratio, 1500 * width_ratio, 895 * height_ratio))
+        screenshot = frame.crop((1308 * self.width_ratio, 702 * self.height_ratio, 1500 * self.width_ratio, 895 * self.height_ratio))
         yellow_pixels = count_hsv_pixels(screenshot, (19, 200, 249), (24, 226, 255))
         if yellow_pixels > self.super_pixels_minimum:
             return True
@@ -538,17 +523,13 @@ class Play(Movement):
         self.track_no_detections(data)
         if not data:
             self.time_since_different_movement = time.time()
-
             if current_time - self.time_since_last_proceeding > self.no_detection_proceed_delay:
                 current_state = get_state(frame)
                 if current_state != "match":
                     self.time_since_last_proceeding = current_time
                 else:
                     print("haven't detected the player in a while proceeding")
-                    if self.bot_plays_in_background:
-                        self.window_controller.send_keys_to_window(["q"])
-                    else:
-                        pyautogui.press("q")
+                    self.window_controller.press_key("Q")
                     self.time_since_last_proceeding = time.time()
             return
         self.time_since_last_proceeding = time.time()
@@ -567,15 +548,15 @@ class Play(Movement):
 
         movement = self.loop(brawler, data, current_time)
 
-        if data:
-            # Record scene data
-            self.scene_data.append({
-                'frame_number': len(self.scene_data),
-                'player': data.get('player', []),
-                'enemy': data.get('enemy', []),
-                'wall': data.get('wall', []),
-                'movement': movement,
-            })
+        # if data:
+        #     # Record scene data
+        #     self.scene_data.append({
+        #         'frame_number': len(self.scene_data),
+        #         'player': data.get('player', []),
+        #         'enemy': data.get('enemy', []),
+        #         'wall': data.get('wall', []),
+        #         'movement': movement,
+        #     })
 
     def generate_visualization(self, output_filename='visualization.mp4'):
         import cv2

@@ -34,13 +34,10 @@ frame_queue = Queue(maxsize=1)
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 
 
-def capture_loop(window_controller, Screenshot, does_bot_player_in_background):
+def capture_loop(Screenshot):
     while True:
         try:
-            if not does_bot_player_in_background:
-                image = Screenshot.take()
-            else:
-                image = window_controller.screenshot()
+            image = Screenshot.take()
             frame_queue.put(image, block=False)
         except Full:
             try:
@@ -55,34 +52,32 @@ def capture_loop(window_controller, Screenshot, does_bot_player_in_background):
 
 
 def pyla_main(data):
+    current_emulator = load_toml_as_dict("cfg/general_config.toml")["current_emulator"]
+
     class Main:
 
-        def __init__(self, lobby_automator):
+        def __init__(self):
             self.does_bot_player_in_background = load_toml_as_dict("cfg/general_config.toml")["bot_plays_in_background"] == "yes"
             chosen_monitor = int(load_toml_as_dict("./cfg/general_config.toml")['monitor'])
             camera = bettercam.create(device_idx=chosen_monitor)
-            current_emulator = load_toml_as_dict("cfg/general_config.toml")["current_emulator"]
-            window_controller = WindowController(current_emulator)
+            window_controller = WindowController(current_emulator, self.does_bot_player_in_background)
             if not window_controller.setup:
                 self.does_bot_player_in_background = False
-            Screenshot = ScreenshotTaker(camera, window_controller)
-            capture_thread = threading.Thread(target=capture_loop, args=(window_controller, Screenshot, self.does_bot_player_in_background),daemon=True)
+                window_controller.bot_plays_in_background = False
+            Screenshot = ScreenshotTaker(camera, window_controller, self.does_bot_player_in_background)
+            capture_thread = threading.Thread(target=capture_loop, args=(Screenshot,),daemon=True)
             capture_thread.start()
-            window_controller_thread = threading.Thread(target=window_controller.send_keys,daemon=True)
-            window_controller_thread.start()
             self.specific_brawlers_data = []
             self.Play = Play(*self.load_models(), window_controller)
             self.Time_management = TimeManagement()
-            self.lobby_automator = lobby_automator
-            self.Stage_manager = StageManager(data, frame_queue, self.does_bot_player_in_background, window_controller)
+            self.lobby_automator = LobbyAutomation(frame_queue, window_controller)
+            self.Stage_manager = StageManager(data, frame_queue, self.lobby_automator, window_controller)
             self.states_requiring_data = ["play_store", "brawl_stars_crashed", "lobby"]
             brawler_menu_btn_coords = find_template_center(frame_queue.get(), load_image(r'state_finder/images_to_detect/brawler_menu_btn.png'))
             self.lobby_automator.coords_cfg['lobby']['brawlers_btn'] = brawler_menu_btn_coords
-            if data[0]['automatically_pick'] and not self.does_bot_player_in_background:
+            if data[0]['automatically_pick']:
                 if debug: print("Picking brawler automatically")
                 self.lobby_automator.select_brawler(data[0]['brawler'])
-            if self.does_bot_player_in_background and len(data) > 1:
-                print("WARNING : You have chosen to let the bot play in background, but also submitted multiple brawlers. \nAutomatic brawler picking is disabled when playing in background so you'll have to switch change brawler.")
             self.Play.current_brawler = data[0]['brawler']
             self.no_detections_action_threshold = 60 * 8
             self.initialize_stage_manager()
@@ -187,33 +182,33 @@ def pyla_main(data):
                     if elapsed_time < time_per_frame:
                         time.sleep(time_per_frame - elapsed_time)
 
-    try:
-        window = pygetwindow.getWindowsWithTitle('LDPlayer')[0]
 
-        if window.isMinimized:
-            window.restore()
-
+    if current_emulator != "Others":
         try:
-            window.activate()
+            window = pygetwindow.getWindowsWithTitle(current_emulator)[0]
+
+            if window.isMinimized:
+                window.restore()
+
+            try:
+                window.activate()
+            except:
+                pass
+
+            window.maximize()
         except:
-            pass
+            print(
+                "Couldn't find chosen emulator window. Please report this to AngelFire.")
 
-        window.maximize()
-    except:
-        print(
-            "Couldn't find LDPlayer window. Using another emulator isn't recommended and can lead to unexpected issues.")
-
-    main = Main(
-        lobby_automator=LobbyAutomation(frame_queue)
-    )
+    main = Main()
     main.main()
     return width, height
 
 
 width, height = pyautogui.size()
 if width > 1920:
-    print(
-        "⚠️Warning:⚠️ Screen resolution is higher 1920x1080. This might cause major issues. Please lower your resolution to 1920x1080 in computer settings (Display Settings), NOT LDPlayer settings. ⚠️⚠️⚠️")
+    print("⚠️Warning:⚠️ Screen resolution is higher 1920x1080. This can cause major issues. Please lower your resolution to 1920x1080 (or lower of 16:9 ratio) in computer settings (Display Settings), NOT LDPlayer settings. ⚠️⚠️⚠️")
+    time.sleep(5)
 
 orig_screen_width, orig_screen_height = 1920, 1080
 width_ratio = width / orig_screen_width

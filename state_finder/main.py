@@ -91,7 +91,7 @@ def find_game_result(screenshot):
 
     _, text, conf = result[0]
     game_result, ratio = rework_game_result(text)
-    if ratio < 0.5:
+    if ratio < 0.3:
         print("Couldn't find game result", game_result, ratio)
         return False
     return True
@@ -160,9 +160,6 @@ def get_state(screenshot):
     screenshot_bgr = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
     state = get_in_game_state(screenshot_bgr)
     print(f"State: {state}")
-    if state != "match":
-        for key in ['w', 'a', 'd', 's']:
-            pyautogui.keyUp(key)
     return state
 
 
