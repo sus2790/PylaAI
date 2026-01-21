@@ -537,8 +537,8 @@ class Hub:
 
         disclaim_label = ctk.CTkLabel(
             disclaim_frame,
-            text="Pyla is free and public. Join the Discord -> ",
-            font=("Arial", S(16), "bold"),
+            text="Pyla is free, public and open-source. Join the Discord -> ",
+            font=("Arial", S(18), "bold"),
             text_color="#FFFFFF"
         )
         disclaim_label.pack(side="left")
@@ -551,7 +551,7 @@ class Hub:
         link_label = ctk.CTkLabel(
             disclaim_frame,
             text=discord_link,
-            font=("Arial", S(16), "bold"),
+            font=("Arial", S(18), "bold"),
             text_color="#3498db",
             cursor="hand2"
         )
@@ -559,6 +559,31 @@ class Hub:
         link_label.bind("<Button-1>", lambda e: open_discord_link())
 
         row_ += 1
+
+        ad_frame = ctk.CTkFrame(container, fg_color="transparent")
+        ad_frame.grid(row=row_, column=0, columnspan=2, pady=S(10))
+
+        ad_label = ctk.CTkLabel(
+            ad_frame,
+            text="Support Pyla and get Early Access to updates by becoming a Patreon supporter -> ",
+            font=("Arial", S(18), "bold"),
+            text_color="#FFFFFF"
+        )
+        ad_label.pack(side="left")
+
+        shown_patreon_link = "www.patreon.com/c/pyla"
+        patreon_link = "https://www.patreon.com/pyla/membership"
+        def open_patreon_link():
+            webbrowser.open(patreon_link)
+        patreon_label = ctk.CTkLabel(
+            ad_frame,
+            text=shown_patreon_link,
+            font=("Arial", S(18), "bold"),
+            text_color="#3498db",
+            cursor="hand2"
+        )
+        patreon_label.pack(side="left")
+        patreon_label.bind("<Button-1>", lambda e: open_patreon_link())
 
         container.grid_columnconfigure(0, weight=1)
         container.grid_columnconfigure(1, weight=1)

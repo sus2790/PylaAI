@@ -239,16 +239,16 @@ class SelectBrawler:
                      text_color=self.colors['red']).pack(
             pady=int(7 * scale_factor))
         farm_type_button_frame.pack()
-        ctk.CTkLabel(top, text="Push Until", font=("Comic sans MS", int(15 * scale_factor)),
+        ctk.CTkLabel(top, text="Target Amount", font=("Comic sans MS", int(15 * scale_factor)),
                      text_color=self.colors['chess white']).pack()
         push_until_entry.pack(pady=int(4 * scale_factor))
-        ctk.CTkLabel(top, text="Trophies", font=("Comic sans MS", int(15 * scale_factor)),
+        ctk.CTkLabel(top, text="Current Trophies", font=("Comic sans MS", int(15 * scale_factor)),
                      text_color=self.colors['chess white']).pack()
         trophies_entry.pack(pady=int(4 * scale_factor))
-        ctk.CTkLabel(top, text="Win Amount", font=("Comic sans MS", int(15 * scale_factor)),
+        ctk.CTkLabel(top, text="Current Wins", font=("Comic sans MS", int(15 * scale_factor)),
                      text_color=self.colors['chess white']).pack()
         wins_entry.pack(pady=int(4 * scale_factor))
-        ctk.CTkLabel(top, text="Brawler's Win Streak", font=("Comic sans MS", int(15 * scale_factor)),
+        ctk.CTkLabel(top, text="Current Brawler's Win Streak", font=("Comic sans MS", int(15 * scale_factor)),
                      text_color=self.colors['chess white']).pack()
         current_win_streak_entry.pack(pady=int(4 * scale_factor))
         auto_pick_checkbox.pack(pady=int(4 * scale_factor))  # Add the checkbox to the UI

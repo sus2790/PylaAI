@@ -233,7 +233,7 @@ class StageManager:
         screenshot = self.frame_queue.get()
         popup_location = find_template_center(screenshot, self.close_popup_icon)
         if popup_location:
-            self.window_controller.click(popup_location)
+            self.window_controller.click(*popup_location)
 
     def do_state(self, state, data=None):
         if data:

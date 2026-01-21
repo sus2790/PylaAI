@@ -5,6 +5,7 @@ from io import BytesIO
 import ctypes
 import json
 import aiohttp
+import google_play_scraper
 import requests
 import toml
 from PIL import Image
@@ -20,9 +21,6 @@ from onnxtr.io import DocumentFile
 from onnxtr.models import ocr_predictor
 import easyocr
 import json
-
-from window_controller import WindowController
-
 
 def extract_text_and_positions(image_path):
     results = reader.readtext(image_path)
@@ -108,41 +106,6 @@ class DefaultEasyOCR:
 
     def readtext(self, image_input):
         return self.reader.readtext(image_input)
-
-class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
-
-    def __init__(self, camera, window_controller, does_bot_play_in_background):
-        self.camera = camera
-        self.window_controller = window_controller
-        self.does_bot_play_in_background = does_bot_play_in_background
-
-    def take(self):
-        if not self.does_bot_play_in_background:
-            try:
-                image = self.camera.grab()
-            except Exception as e:
-                print(f"Error capturing screenshot: {e}")
-                image = None
-            if image is not None:
-                image = Image.fromarray(image)
-            c = 0
-            while image is None and c < 5:
-                try:
-                    image = self.camera.grab()
-                    if image is not None:
-                        image = Image.fromarray(image)
-                except Exception as e:
-                    print(f"Error capturing screenshot: {e}")
-                    image = None
-                    c += 1
-            if image is None:
-                if self.window_controller.setup:
-                    image = self.window_controller.screenshot()
-                else:
-                    raise ValueError("Could not capture screenshot from camera or window.")
-            return image
-        else:
-            return self.window_controller.screenshot()
 
 def load_toml_as_dict(file_path):
     if os.path.exists(file_path):
@@ -291,17 +254,45 @@ def save_brawler_icon(brawler_name):
 
 
 def update_icons():
-    icons = ['brawl_stars_icon.png', 'brawl_stars_icon_big.png']
-    base_url = f'https://{api_base_url}/get_icon/'
-    for icon_name in icons:
-        icon_url = base_url + icon_name
-        response = requests.get(icon_url)
-        if response.status_code == 200:
-            with open(f'./state_finder/images_to_detect/{icon_name}', 'wb') as f:
-                f.write(response.content)
-            print(f"Downloaded and updated {icon_name}")
-        else:
-            print(f"Failed to download {icon_name}. Status code: {response.status_code}")
+    try:
+        icon_link = google_play_scraper.app("com.supercell.brawlstars")["icon"]
+    except:
+        time.sleep(1)
+        try:
+            icon_link = google_play_scraper.app("com.supercell.brawlstars")["icon"]
+        except Exception as e:
+            print(f"Failed to get latest icon link from Google Play Store: {e}")
+            return
+
+    response = requests.get(icon_link)
+    big_icon = 'brawl_stars_icon_big.png'
+    small_icon = 'brawl_stars_icon.png'
+    if response.status_code == 200:
+        icon_image = Image.open(BytesIO(response.content))
+
+        # big icon
+        big_icon_image = icon_image.resize((69, 69))
+        width, height = big_icon_image.size
+        left = (width - 50) / 2
+        top = (height - 50) / 2
+        right = (width + 50) / 2
+        bottom = (height + 50) / 2
+        big_icon_image = big_icon_image.crop((left, top, right, bottom))
+        big_icon_image.save(f'./state_finder/images_to_detect/{big_icon}')
+
+        # small icon resize to 16x16
+        small_icon_image = icon_image.resize((16, 16))
+        width, height = small_icon_image.size
+        left = (width - 12) / 2
+        top = (height - 12) / 2
+        right = (width + 12) / 2
+        bottom = (height + 12) / 2
+        small_icon_image = small_icon_image.crop((left, top, right, bottom))
+        small_icon_image.save(f'./state_finder/images_to_detect/{small_icon}')
+        print(f"Updated to the latest icon !")
+    else:
+        print(f"Failed to download latest icon. Status code: {response.status_code}")
+
 
 def get_latest_version():
     url = f'https://{api_base_url}/check_version'

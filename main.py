@@ -1,3 +1,4 @@
+import random
 import threading
 from queue import Queue, Full, Empty
 import asyncio
@@ -20,7 +21,7 @@ from stage_manager import StageManager, load_image
 from state_finder.main import get_state
 import state_finder.main as state_finder_main
 from time_management import TimeManagement
-from utils import ScreenshotTaker, load_toml_as_dict, current_wall_model_is_latest, api_base_url, find_template_center
+from utils import load_toml_as_dict, current_wall_model_is_latest, api_base_url, find_template_center
 from utils import get_brawler_list, update_missing_brawlers_info, update_icons, check_version, async_notify_user, \
     update_wall_model_classes, get_latest_wall_model_file, get_latest_version, cprint
 from window_controller import WindowController
@@ -34,10 +35,10 @@ frame_queue = Queue(maxsize=1)
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 
 
-def capture_loop(Screenshot):
+def capture_loop(window_controller: WindowController):
     while True:
         try:
-            image = Screenshot.take()
+            image = window_controller.screenshot()
             frame_queue.put(image, block=False)
         except Full:
             try:
@@ -60,12 +61,11 @@ def pyla_main(data):
             self.does_bot_player_in_background = load_toml_as_dict("cfg/general_config.toml")["bot_plays_in_background"] == "yes"
             chosen_monitor = int(load_toml_as_dict("./cfg/general_config.toml")['monitor'])
             camera = bettercam.create(device_idx=chosen_monitor)
-            window_controller = WindowController(current_emulator, self.does_bot_player_in_background)
+            window_controller = WindowController(current_emulator, camera, self.does_bot_player_in_background)
             if not window_controller.setup:
                 self.does_bot_player_in_background = False
                 window_controller.bot_plays_in_background = False
-            Screenshot = ScreenshotTaker(camera, window_controller, self.does_bot_player_in_background)
-            capture_thread = threading.Thread(target=capture_loop, args=(Screenshot,),daemon=True)
+            capture_thread = threading.Thread(target=capture_loop, args=(window_controller,),daemon=True)
             capture_thread.start()
             self.specific_brawlers_data = []
             self.Play = Play(*self.load_models(), window_controller)
@@ -140,6 +140,10 @@ def pyla_main(data):
         def main(self): #this is for timer to stop after time
             s_time = time.time()
             c = 0
+            import cProfile
+            profiler = cProfile.Profile()
+            profiler.enable()
+            i = 0
             while True:
 
                 if self.run_for_minutes > 0 and not self.in_cooldown:
@@ -174,6 +178,7 @@ def pyla_main(data):
                 brawler = self.Stage_manager.brawlers_pick_data[0]['brawler']
                 self.Play.main(frame, brawler)
                 c += 1
+                i += 1
 
                 # Enforce max IPS if set
                 if self.max_ips:
@@ -181,7 +186,10 @@ def pyla_main(data):
                     elapsed_time = time.time() - s_time
                     if elapsed_time < time_per_frame:
                         time.sleep(time_per_frame - elapsed_time)
-
+                if i > 1000:
+                    profiler.disable()
+                    profiler.print_stats(sort='tottime')
+                    exit()
 
     if current_emulator != "Others":
         try:
@@ -216,9 +224,10 @@ height_ratio = height / orig_screen_height
 scale_factor = min(width_ratio, height_ratio)
 
 all_brawlers = get_brawler_list()
+update_icons()
 if api_base_url != "localhost":
     update_missing_brawlers_info(all_brawlers)
-    update_icons()
+
     check_version()
     update_wall_model_classes()
     if not current_wall_model_is_latest():
