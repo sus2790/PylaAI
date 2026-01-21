@@ -174,7 +174,6 @@ def pyla_main(data):
                 brawler = self.Stage_manager.brawlers_pick_data[0]['brawler']
                 self.Play.main(frame, brawler)
                 c += 1
-                i += 1
 
                 # Enforce max IPS if set
                 if self.max_ips:
