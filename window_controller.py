@@ -117,7 +117,6 @@ class WindowController:
         # If it fails, try with flag 0 (Default)
         if result == 0:
             ctypes.windll.user32.PrintWindow(self.hwnd_child, save_dc.GetSafeHdc(), 0)
-            print("failed to capture with flag 2, used flag 0 instead")
         bmp_info = save_bitmap.GetInfo()
         bmp_str = save_bitmap.GetBitmapBits(True)
         img_array = np.frombuffer(bmp_str, np.uint8).reshape(bmp_info['bmHeight'], bmp_info['bmWidth'], 4)

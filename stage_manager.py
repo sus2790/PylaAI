@@ -161,6 +161,7 @@ class StageManager:
                 print("Next brawler is in manual mode, waiting 10 seconds to let user switch.")
 
         # q btn is over the start btn
+        self.window_controller.keys_up(list("wasd"))
         self.window_controller.press_key("Q")
         print("Pressed Q to start a match")
 

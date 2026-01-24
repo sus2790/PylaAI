@@ -522,6 +522,7 @@ class Play(Movement):
         data = self.validate_game_data(data)
         self.track_no_detections(data)
         if not data:
+            self.window_controller.keys_up(list("wasd"))
             self.time_since_different_movement = time.time()
             if current_time - self.time_since_last_proceeding > self.no_detection_proceed_delay:
                 current_state = get_state(frame)
