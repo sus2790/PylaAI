@@ -32,7 +32,22 @@ class LobbyAutomation:
 
     def select_brawler(self, brawler):
         self.window_controller.screenshot()
-        brawler_menu_btn_coords = find_template_center(self.window_controller.screenshot(), load_image(r'state_finder/images_to_detect/brawler_menu_btn.png', self.window_controller.scale_factor))
+        brawler_menu_treshold = 0.8
+        found = False
+        while not found:
+            brawler_menu_btn_coords = find_template_center(self.window_controller.screenshot(), load_image(
+                r'state_finder/images_to_detect/brawler_menu_btn.png', self.window_controller.scale_factor),
+                                                           brawler_menu_treshold)
+            if brawler_menu_btn_coords:
+                found = True
+            else:
+                if debug: print("Brawler menu button not found, retrying...")
+                brawler_menu_treshold -= 0.1
+                time.sleep(1)
+            if not found and brawler_menu_treshold < 0.5:
+                image = self.window_controller.screenshot()
+                image.save(r'brawler_menu_btn_not_found.png')
+                raise ValueError("Brawler menu button not found on screen, even at low threshold.")
         x, y = brawler_menu_btn_coords
         self.window_controller.click(x, y)
         c = 0

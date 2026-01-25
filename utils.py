@@ -135,7 +135,7 @@ def save_brawler_data(data):
 
 
 
-def find_template_center(main_img, template):
+def find_template_center(main_img, template, threshold=0.8):
     main_image_cv = cv2.cvtColor(np.array(main_img), cv2.COLOR_RGB2GRAY)
     template_cv = cv2.cvtColor(np.array(template), cv2.COLOR_RGB2GRAY)
     w, h = template_cv.shape[::-1]
@@ -145,7 +145,6 @@ def find_template_center(main_img, template):
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
     # Check if the match is found based on a threshold value
-    threshold = 0.8
     if max_val >= threshold:
         center_x = max_loc[0] + w // 2
         center_y = max_loc[1] + h // 2
