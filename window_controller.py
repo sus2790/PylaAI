@@ -16,6 +16,8 @@ from typing import List
 import scrcpy
 from adbutils import adb
 
+from utils import load_toml_as_dict
+
 # --- Configuration ---
 brawl_stars_width, brawl_stars_height = 1920, 1080
 
@@ -50,7 +52,7 @@ class WindowController:
             device_list = adb.device_list()
             if not device_list:
                 # Try connecting to common ports if empty
-                for port in [5555, 5037, 16384, 5635]:
+                for port in [5555, load_toml_as_dict("cfg/general_config.toml")["emulator_port"], 16384, 5635]:
                     try:
                          adb.connect(f"127.0.0.1:{port}")
                     except:
