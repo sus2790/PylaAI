@@ -17,8 +17,6 @@ from PIL import Image
 from packaging import version
 import bettercam
 import time
-from onnxtr.io import DocumentFile
-from onnxtr.models import ocr_predictor
 import easyocr
 import json
 
@@ -41,64 +39,6 @@ def extract_text_and_positions(image_path):
         text_details[text.lower()] = formatted_bbox
 
     return text_details
-
-
-class OCR_Wrapper:
-    def __init__(self):
-        self.model = ocr_predictor(det_arch='db_mobilenet_v3_large',
-                                   reco_arch='crnn_vgg16_bn')
-
-    def readtext(self, image_input):
-        """
-        Mimics easyocr.Reader.readtext behavior
-        Returns: list of ([top_left, top_right, bottom_right, bottom_left], text, confidence)
-        """
-        if isinstance(image_input, np.ndarray):
-            # FIX: Encode numpy array to bytes to satisfy onnxtr
-            # This simulates reading a file from disk, which guarantees compatibility
-            is_success, buffer = cv2.imencode(".png", image_input)
-
-            if not is_success:
-                raise ValueError("Could not encode image input to bytes")
-
-            doc = DocumentFile.from_images([buffer.tobytes()])
-            h, w = image_input.shape[:2]
-        else:
-            raise ValueError("Unsupported image format")
-
-        # 2. Predict
-        result = self.model(doc)
-        export = result.export()
-
-        # 3. Format Output to match EasyOCR
-        easyocr_style_output = []
-
-        # onnxtr structure: pages -> blocks -> lines -> words
-        for page in export['pages']:
-            for block in page['blocks']:
-                for line in block['lines']:
-                    for word in line['words']:
-                        text = word['value']
-                        conf = word['confidence']
-
-                        # Geometry comes as relative coordinates (0.0 to 1.0)
-                        # word['geometry'] is ((x_min, y_min), (x_max, y_max))
-                        (x_min, y_min), (x_max, y_max) = word['geometry']
-
-                        # Scale to pixels
-                        x1, y1 = int(x_min * w), int(y_min * h)
-                        x2, y2 = int(x_max * w), int(y_max * h)
-
-                        # EasyOCR returns 4 points: TL, TR, BR, BL
-                        bbox = [
-                            [x1, y1],  # Top Left
-                            [x2, y1],  # Top Right
-                            [x2, y2],  # Bottom Right
-                            [x1, y2]  # Bottom Left
-                        ]
-
-                        easyocr_style_output.append((bbox, text, conf))
-        return easyocr_style_output
 
 class DefaultEasyOCR:
     def __init__(self):
