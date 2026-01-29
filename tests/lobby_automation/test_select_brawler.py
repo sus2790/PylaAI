@@ -33,12 +33,6 @@ class TestLobbyAutomation(unittest.TestCase):
         expected_scaled_y = EXPECTED_BRAWLER_Y
         
         self.assert_click_within_tolerance(expected_scaled_x, expected_scaled_y, TOLERANCE)
-        
-        print(f"\nTotal clicks made: {self.mock_window_controller.click.call_count}")
-        for i, call in enumerate(self.mock_window_controller.click.call_args_list):
-            args = call[0]
-            kwargs = call[1] if len(call) > 1 else {}
-            print(f"Click {i+1}: ({args[0]}, {args[1]}) {kwargs}")
 
     def assert_click_within_tolerance(self, expected_x, expected_y, tolerance=50):
         """Helper method to check if any click was within tolerance of expected coordinates"""
