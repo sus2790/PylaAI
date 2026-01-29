@@ -78,7 +78,7 @@ class LobbyAutomation:
                 select_x, select_y = self.coords_cfg['lobby']['select_btn'][0], self.coords_cfg['lobby']['select_btn'][1]
                 self.window_controller.click(select_x, select_y, already_include_ratio=False)
                 time.sleep(0.5)
-                if debug: print("Selected brawler. ", brawler)
+                if debug: print("Selected brawler ", brawler)
                 break
             if c == 0:
                 self.window_controller.swipe(int(1700 * width_ratio), int(900 * height_ratio), int(1700 * width_ratio), int(850 * height_ratio), duration=0.8)
