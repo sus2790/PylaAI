@@ -24,6 +24,9 @@ Devs :
 - Iyordanov
 - AngelFire
 
+# Run tests
+Run `python -m unittest discover` to check if your changes have made any regressions. 
+
 # If you want to contribute, don't hesitate to create an Issue, a Pull Request, or/and make a ticket on the Pyla discord server at :
 https://discord.gg/xUusk3fw4A
 
