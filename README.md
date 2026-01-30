@@ -7,7 +7,8 @@ This repository is intended for devs and it's recommended for others to use the 
 
 How to run : 
 - Install python (tested with python 3.11.9)
-- in a cmd in the folder run `install_dependencies` to install the necessary libraries. Read Notes if you have a gpu.
+- in a cmd in the folder run `pip install -r requirements.txt` to install most of the necessary libraries. Read Notes if you have a gpu.
+- then run `pip install "adbutils>=2.0.0"`
 - run main.py
 - enjoy !
 
