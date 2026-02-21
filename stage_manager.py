@@ -6,12 +6,11 @@ import time
 import cv2
 import numpy as np
 import pyautogui
-import requests
 
 from state_finder.main import get_state
 from trophy_observer import TrophyObserver
 from utils import find_template_center, extract_text_and_positions, load_toml_as_dict, async_notify_user, \
-    save_brawler_data
+    save_brawler_data, http_post
 
 user_id = load_toml_as_dict("cfg/general_config.toml")['discord_id']
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
@@ -25,7 +24,7 @@ def notify_user(message_type):
         'content': f"<@{user_id}> Pyla Bot has completed all it's targets !"
     }
 
-    response = requests.post(user_webhook, json=message_data)
+    response = http_post(user_webhook, json=message_data)
 
     if response.status_code != 204:
         print(

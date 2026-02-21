@@ -1,9 +1,9 @@
 import os
 
-import requests
+import httpx
 from difflib import SequenceMatcher
 import numpy as np
-from utils import update_toml_file, load_toml_as_dict, save_dict_as_toml, api_base_url, reader
+from utils import update_toml_file, load_toml_as_dict, save_dict_as_toml, api_base_url, reader, http_post
 
 class TrophyObserver:
 
@@ -154,7 +154,10 @@ class TrophyObserver:
         if api_base_url != "localhost":
             # Send the POST request
             try:
-                response = requests.post(f'https://{api_base_url}/api/brawlers', json=data)
+                response = http_post(
+                    f'https://{api_base_url}/api/brawlers',
+                    json=data,
+                )
                 if response.status_code == 200:
                     print("Results successfully sent to API")
                     # Update sent_match_history with the latest totals
@@ -165,5 +168,5 @@ class TrophyObserver:
                             self.sent_match_history[brawler]["draw"] = 0
                 else:
                     print(f"Failed to send results to API. Status code: {response.status_code}")
-            except requests.exceptions.RequestException as e:
+            except httpx.RequestError as e:
                 print(f"Error sending results to API: {e}")

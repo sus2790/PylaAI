@@ -4,13 +4,10 @@ import os
 from io import BytesIO
 import ctypes
 import json
-import aiohttp
 import google_play_scraper
-import requests
+import httpx
 import toml
 from PIL import Image
-from discord import Webhook
-import discord
 import cv2
 import numpy as np
 from packaging import version
@@ -56,6 +53,15 @@ def load_toml_as_dict(file_path):
 reader = DefaultEasyOCR()
 api_base_url = "localhost"
 brawlers_info_file_path = "cfg/brawlers_info.json"
+HTTPX_REQUEST_KWARGS = {"timeout": None, "follow_redirects": True}
+
+
+def http_get(url, **kwargs):
+    return httpx.get(url, **{**HTTPX_REQUEST_KWARGS, **kwargs})
+
+
+def http_post(url, **kwargs):
+    return httpx.post(url, **{**HTTPX_REQUEST_KWARGS, **kwargs})
 
 def count_hsv_pixels(pil_image, low_hsv, high_hsv):
     opencv_image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
@@ -129,7 +135,7 @@ def get_brawler_list():
         brawler_list = list(load_brawlers_info().keys())
         return brawler_list
     url = f'https://{api_base_url}/get_brawler_list'
-    response = requests.post(url)
+    response = http_post(url)
     if response.status_code == 201:
         data = response.json()
         return data.get('brawlers', [])
@@ -156,7 +162,7 @@ def update_missing_brawlers_info(brawlers):
 
 def get_brawler_info(brawler_name):
     url = f'https://{api_base_url}/get_brawler_info'  # Adjust the URL if necessary
-    response = requests.post(url, json={'brawler_name': brawler_name})
+    response = http_post(url, json={'brawler_name': brawler_name})
     if response.status_code == 200:
         data = response.json()
         return data.get('info', [])
@@ -170,7 +176,7 @@ def save_brawler_icon(brawler_name):
     brawler_name_clean = brawler_name.lower().replace(' ', '').replace('-', '').replace('.', '').replace('&',
                                                                                                          '')
     brawlers_url = "https://api.brawlapi.com/v1/brawlers"
-    response = requests.get(brawlers_url)
+    response = http_get(brawlers_url)
     if response.status_code != 200:
         print(f"Failed to fetch brawlers from API: {response.status_code}")
         return
@@ -183,7 +189,7 @@ def save_brawler_icon(brawler_name):
             '&', '')
         if api_brawler_name == brawler_name_clean:
             icon_url = brawler_obj['imageUrl2']
-            img_response = requests.get(icon_url)
+            img_response = http_get(icon_url)
             if img_response.status_code == 200:
                 image = Image.open(BytesIO(img_response.content))
                 image.save(f"api/assets/brawler_icons/{brawler_name_clean}.png")
@@ -205,7 +211,7 @@ def update_icons():
             print(f"Failed to get latest icon link from Google Play Store: {e}")
             return
 
-    response = requests.get(icon_link)
+    response = http_get(icon_link)
     big_icon = 'brawl_stars_icon_big.png'
     small_icon = 'brawl_stars_icon.png'
     if response.status_code == 200:
@@ -237,7 +243,7 @@ def update_icons():
 
 def get_latest_version():
     url = f'https://{api_base_url}/check_version'
-    response = requests.get(url)
+    response = http_get(url)
     if response.status_code == 200:
         data = response.json()
         return data.get('version', '')
@@ -272,26 +278,40 @@ async def async_notify_user(message_type: str | None = None, screenshot: Image =
         status_line = f"Pyla completed brawler goal for {message_type}!"
         ping = f"<@{user_id}>"
 
+    if screenshot is None:
+        print("Couldn't notify: no screenshot available.")
+        return
+
     buffer = io.BytesIO()
     screenshot.save(buffer, format="PNG")
-    buffer.seek(0)
-    file = discord.File(buffer, filename="screenshot.png")
+    payload = {
+        "username": "Pyla notifier",
+        "content": ping,
+        "embeds": [
+            {"description": status_line, "image": {"url": "attachment://screenshot.png"}}
+        ],
+    }
 
-    # Build the embed that holds both the text and the screenshot
-    embed = discord.Embed(description=status_line)
-    embed.set_image(url="attachment://screenshot.png")   # show the attached screenshot
+    try:
+        async with httpx.AsyncClient(**HTTPX_REQUEST_KWARGS) as client:
+            print("sending webhook")
+            response = await client.post(
+                webhook_url,
+                data={"payload_json": json.dumps(payload)},
+                files={"files[0]": ("screenshot.png", buffer.getvalue(), "image/png")},
+            )
+    except httpx.RequestError as exc:
+        print(f"Failed to send message. Be sure to have put a valid webhook url in the config. Error: {exc}")
+        return
 
-    # Send the embed
-    async with aiohttp.ClientSession() as session:
-        webhook = Webhook.from_url(webhook_url, session=session)
-        print("sending webhook")
-        await webhook.send(embed=embed, file=file, username="Pyla notifier", content=ping)
+    if response.status_code not in (200, 204):
+        print(f"Failed to send message. Be sure to have put a valid webhook url in the config. Status code: {response.status_code}")
         
 def get_discord_link():
     if api_base_url == "localhost":
         return "https://discord.gg/xUusk3fw4A"
     url = f'https://{api_base_url}/get_discord_link'
-    response = requests.get(url)
+    response = http_get(url)
     if response.status_code == 200:
         data = response.json()
         return data.get('link', '')
@@ -300,7 +320,7 @@ def get_discord_link():
 
 def get_online_wall_model_hash():
     url = f'https://{api_base_url}/get_wall_model_hash'
-    response = requests.get(url)
+    response = http_get(url)
     if response.status_code == 200:
         data = response.json()
         return data.get('hash', '')
@@ -329,7 +349,7 @@ def current_wall_model_is_latest() -> bool:
 def get_latest_wall_model_file():
     #download the new model to replace the current file and also updates the tile list
     url = f'https://{api_base_url}/get_wall_model_file'
-    response = requests.get(url)
+    response = http_get(url)
     if response.status_code == 200:
         with open("./models/tileDetector.onnx", "wb") as file:
             file.write(response.content)
@@ -339,7 +359,7 @@ def get_latest_wall_model_file():
 
 def get_latest_wall_model_classes():
     url = f'https://{api_base_url}/get_wall_model_classes'
-    response = requests.get(url)
+    response = http_get(url)
     if response.status_code == 200:
         data = response.json()
         return data.get('classes', [])
